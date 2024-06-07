@@ -150,13 +150,30 @@ export class EchoerClientImpl implements Echoer {
 }
 
 interface Rpc {
-  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
-  clientStreamingRequest(service: string, method: string, data: AsyncIterable<Uint8Array>): Promise<Uint8Array>;
-  serverStreamingRequest(service: string, method: string, data: Uint8Array): AsyncIterable<Uint8Array>;
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
+  clientStreamingRequest(service: string, method: string, req: AsyncIterable<Uint8Array>): Promise<Uint8Array>;
+  serverStreamingRequest(service: string, method: string, req: Uint8Array): AsyncIterable<Uint8Array>;
   bidirectionalStreamingRequest(
     service: string,
     method: string,
-    data: AsyncIterable<Uint8Array>,
+    req: AsyncIterable<Uint8Array>,
+  ): AsyncIterable<Uint8Array>;
+}
+
+interface Codec<T> {
+  fromJSON(object: any): T;
+  fromPartial(object: DeepPartial<T>): T;
+  toJSON(message: T): unknown;
+}
+
+interface Rpc {
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
+  clientStreamingRequest(service: string, method: string, req: AsyncIterable<Uint8Array>): Promise<Uint8Array>;
+  serverStreamingRequest(service: string, method: string, req: Uint8Array): AsyncIterable<Uint8Array>;
+  bidirectionalStreamingRequest(
+    service: string,
+    method: string,
+    req: AsyncIterable<Uint8Array>,
   ): AsyncIterable<Uint8Array>;
 }
 

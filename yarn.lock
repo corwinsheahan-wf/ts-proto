@@ -7846,6 +7846,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ts-proto@file:./::locator=ts-proto%40workspace%3A.":
+  version: 1.177.0
+  resolution: "ts-proto@file:./#./::hash=50f4b5&locator=ts-proto%40workspace%3A."
+  dependencies:
+    case-anything: ^2.1.13
+    protobufjs: ^7.2.4
+    ts-poet: ^6.7.0
+    ts-proto-descriptors: 1.16.0
+  bin:
+    protoc-gen-ts_proto: ./protoc-gen-ts_proto
+  checksum: 77eb0d6038c9a76ef2c419fe9ac27bc485e3ea87e27d907cd5600e24dcf804bf8ece38eeb4b7328f52bf257e92962244a96342cddb7d0a92980e581706147f40
+  languageName: node
+  linkType: hard
+
 "ts-proto@workspace:.":
   version: 0.0.0-use.local
   resolution: "ts-proto@workspace:."
@@ -7885,6 +7899,7 @@ __metadata:
     semantic-release: ^21.0.7
     ts-jest: ^29.1.1
     ts-poet: ^6.7.0
+    ts-proto: ./
     ts-proto-descriptors: 1.16.0
     tsx: ^4.11.2
     typescript: ^5.1.6

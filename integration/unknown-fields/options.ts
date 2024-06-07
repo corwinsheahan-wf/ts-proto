@@ -236,5 +236,15 @@ export class MyServiceClientImpl implements MyService {
 }
 
 interface Rpc {
-  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
+}
+
+interface Codec<T> {
+  fromJSON(object: any): T;
+  fromPartial(object: DeepPartial<T>): T;
+  toJSON(message: T): unknown;
+}
+
+interface Rpc {
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
 }

@@ -1019,10 +1019,26 @@ export const DashAPICredsDefinition = {
 } as const;
 
 interface Rpc {
-  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
-  clientStreamingRequest(service: string, method: string, data: Observable<Uint8Array>): Promise<Uint8Array>;
-  serverStreamingRequest(service: string, method: string, data: Uint8Array): Observable<Uint8Array>;
-  bidirectionalStreamingRequest(service: string, method: string, data: Observable<Uint8Array>): Observable<Uint8Array>;
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
+  clientStreamingRequest(service: string, method: string, req: Observable<Uint8Array>): Promise<Uint8Array>;
+  serverStreamingRequest(service: string, method: string, req: Uint8Array): Observable<Uint8Array>;
+  bidirectionalStreamingRequest(service: string, method: string, req: Observable<Uint8Array>): Observable<Uint8Array>;
+  beforeRequest?<T extends { [k in keyof T]: unknown }>(service: string, method: string, request: T): void;
+  afterResponse?<T extends { [k in keyof T]: unknown }>(service: string, method: string, response: T): void;
+  handleError?(service: string, method: string, error: globalThis.Error): globalThis.Error;
+}
+
+interface Codec<T> {
+  fromJSON(object: any): T;
+  fromPartial(object: DeepPartial<T>): T;
+  toJSON(message: T): unknown;
+}
+
+interface Rpc {
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
+  clientStreamingRequest(service: string, method: string, req: Observable<Uint8Array>): Promise<Uint8Array>;
+  serverStreamingRequest(service: string, method: string, req: Uint8Array): Observable<Uint8Array>;
+  bidirectionalStreamingRequest(service: string, method: string, req: Observable<Uint8Array>): Observable<Uint8Array>;
   beforeRequest?<T extends { [k in keyof T]: unknown }>(service: string, method: string, request: T): void;
   afterResponse?<T extends { [k in keyof T]: unknown }>(service: string, method: string, response: T): void;
   handleError?(service: string, method: string, error: globalThis.Error): globalThis.Error;

@@ -160,7 +160,18 @@ export class BasicServiceClientImpl implements BasicService {
 }
 
 interface Rpc {
-  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
+  handleError?(service: string, method: string, error: globalThis.Error): globalThis.Error;
+}
+
+interface Codec<T> {
+  fromJSON(object: any): T;
+  fromPartial(object: DeepPartial<T>): T;
+  toJSON(message: T): unknown;
+}
+
+interface Rpc {
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
   handleError?(service: string, method: string, error: globalThis.Error): globalThis.Error;
 }
 

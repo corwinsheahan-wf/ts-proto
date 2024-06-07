@@ -465,7 +465,19 @@ export const FooServiceDefinition = {
 } as const;
 
 interface Rpc {
-  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
+  beforeRequest?<T extends { [k in keyof T]: unknown }>(service: string, method: string, request: T): void;
+  afterResponse?<T extends { [k in keyof T]: unknown }>(service: string, method: string, response: T): void;
+}
+
+interface Codec<T> {
+  fromJSON(object: any): T;
+  fromPartial(object: DeepPartial<T>): T;
+  toJSON(message: T): unknown;
+}
+
+interface Rpc {
+  request(service: string, method: string, req: Uint8Array): Promise<Uint8Array>;
   beforeRequest?<T extends { [k in keyof T]: unknown }>(service: string, method: string, request: T): void;
   afterResponse?<T extends { [k in keyof T]: unknown }>(service: string, method: string, response: T): void;
 }

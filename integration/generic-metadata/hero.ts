@@ -358,18 +358,41 @@ export const HeroServiceDefinition = {
 } as const;
 
 interface Rpc {
-  request(service: string, method: string, data: Uint8Array, metadata?: Foo): Promise<Uint8Array>;
+  request(service: string, method: string, req: Uint8Array, metadata?: Foo): Promise<Uint8Array>;
   clientStreamingRequest(
     service: string,
     method: string,
-    data: Observable<Uint8Array>,
+    req: Observable<Uint8Array>,
     metadata?: Foo,
   ): Promise<Uint8Array>;
-  serverStreamingRequest(service: string, method: string, data: Uint8Array, metadata?: Foo): Observable<Uint8Array>;
+  serverStreamingRequest(service: string, method: string, req: Uint8Array, metadata?: Foo): Observable<Uint8Array>;
   bidirectionalStreamingRequest(
     service: string,
     method: string,
-    data: Observable<Uint8Array>,
+    req: Observable<Uint8Array>,
+    metadata?: Foo,
+  ): Observable<Uint8Array>;
+}
+
+interface Codec<T> {
+  fromJSON(object: any): T;
+  fromPartial(object: DeepPartial<T>): T;
+  toJSON(message: T): unknown;
+}
+
+interface Rpc {
+  request(service: string, method: string, req: Uint8Array, metadata?: Foo): Promise<Uint8Array>;
+  clientStreamingRequest(
+    service: string,
+    method: string,
+    req: Observable<Uint8Array>,
+    metadata?: Foo,
+  ): Promise<Uint8Array>;
+  serverStreamingRequest(service: string, method: string, req: Uint8Array, metadata?: Foo): Observable<Uint8Array>;
+  bidirectionalStreamingRequest(
+    service: string,
+    method: string,
+    req: Observable<Uint8Array>,
     metadata?: Foo,
   ): Observable<Uint8Array>;
 }
