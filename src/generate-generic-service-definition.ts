@@ -98,9 +98,7 @@ function generateMethodOptions(ctx: Context, options: MethodOptions | undefined)
         const valuesChunks: Code[] = [];
 
         for (const value of values) {
-          valuesChunks.push(
-            code`new Uint8Array([${value.join(", ")}])`,
-          );
+          valuesChunks.push(code`new Uint8Array([${value.join(", ")}])`);
         }
 
         unknownFieldsChunks.push(code`${key}: [\n${joinCode(valuesChunks, { on: "," })}\n],`);

@@ -44,7 +44,7 @@ export type Options = {
   snakeToCamel: Array<"json" | "keys">;
   // TODO: Deterimine what we'd need here
   forceLong: LongOption;
-  
+
   useJsTypeOverride: boolean;
   useOptionals: boolean | "none" | "deprecatedOnly" | "messages" | "all"; // boolean is deprecated
   emitDefaultValues: Array<"json-methods">;
@@ -58,7 +58,7 @@ export type Options = {
   unrecognizedEnum: boolean;
   unrecognizedEnumName: string;
   unrecognizedEnumValue: number;
-  
+
   useJsonName: boolean; // TODO: See about consistency with dart proto plugin
   useJsonWireFormat: boolean; // TODO: I think we might want this defaulted to true
   useMapType: boolean; // TODO: We probably want this, but it's defualted to false
@@ -71,7 +71,7 @@ export function defaultOptions(): Options {
     emitDefaultValues: [],
     forceLong: LongOption.NUMBER, // Probably default to `string`?
     useJsTypeOverride: false,
-    useOptionals: "none", // Maybe will need this? 
+    useOptionals: "none", // Maybe will need this?
     useDate: DateOption.DATE, // related to timestamps, not sure we'll need this at all
     useJsonTimestamp: JsonTimestampOption.RFC3339,
     esModuleInterop: false, // more investigation, tied to `importSuffix`
@@ -122,7 +122,7 @@ export function optionsFromParameter(parameter: string | undefined): Options {
   }
 
   if (options.useJsonWireFormat) {
-      options.useDate = DateOption.STRING;
+    options.useDate = DateOption.STRING;
   }
 
   if (options.unrecognizedEnumValue) {

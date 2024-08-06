@@ -73,7 +73,7 @@ export function basicTypeName(
     case FieldDescriptorProto_Type.TYPE_STRING:
       return code`string`;
     case FieldDescriptorProto_Type.TYPE_BYTES:
-        return code`Uint8Array`;
+      return code`Uint8Array`;
     case FieldDescriptorProto_Type.TYPE_MESSAGE:
     case FieldDescriptorProto_Type.TYPE_GROUP:
     case FieldDescriptorProto_Type.TYPE_ENUM:
@@ -82,7 +82,6 @@ export function basicTypeName(
       return code`${field.typeName}`;
   }
 }
-
 
 export function getFieldOptionsJsType(
   field: FieldDescriptorProto,
@@ -106,7 +105,7 @@ export function getFieldOptionsJsType(
 }
 
 export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
-  const { typeMap, options} = ctx;
+  const { typeMap, options } = ctx;
 
   const useDefaultValue = false;
   const numericDefaultVal = useDefaultValue ? field.defaultValue : 0;
@@ -129,7 +128,7 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
       const defaultEnum =
         enumProto.value.find((v) => (useDefaultValue ? v.name === field.defaultValue : v.number === 0)) ||
         enumProto.value[0];
-        return defaultEnum.number;
+      return defaultEnum.number;
 
     case FieldDescriptorProto_Type.TYPE_INT64:
     case FieldDescriptorProto_Type.TYPE_UINT64:
@@ -172,13 +171,11 @@ export function notDefaultCheck(
   messageOptions: MessageOptions | undefined,
   place: string,
 ): Code {
-  const { typeMap, options} = ctx;
+  const { typeMap, options } = ctx;
 
   const isOptional = isOptionalProperty(field, messageOptions, options);
 
-  const maybeNotUndefinedAnd = isOptional
-    ? `${place} !== undefined ${withAndMaybeCheckIsNotNull(place)} &&`
-    : "";
+  const maybeNotUndefinedAnd = isOptional ? `${place} !== undefined ${withAndMaybeCheckIsNotNull(place)} &&` : "";
 
   switch (field.type) {
     case FieldDescriptorProto_Type.TYPE_DOUBLE:
@@ -204,8 +201,8 @@ export function notDefaultCheck(
       //   const enumValue = getEnumMemberName(ctx, enumProto, defaultEnum);
       //   return code`${maybeNotUndefinedAnd} ${place} !== ${enumType}.${enumValue}`;
       // } else {
-        return code`${maybeNotUndefinedAnd} ${place} !== ${defaultEnum.number}`;
-      // }
+      return code`${maybeNotUndefinedAnd} ${place} !== ${defaultEnum.number}`;
+    // }
     case FieldDescriptorProto_Type.TYPE_UINT64:
     case FieldDescriptorProto_Type.TYPE_FIXED64:
     case FieldDescriptorProto_Type.TYPE_INT64:
@@ -413,9 +410,7 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
     case ".google.protobuf.BoolValue":
       return code`boolean`;
     case ".google.protobuf.BytesValue":
-      return ctx.options.useJsonWireFormat
-        ? code`string`
-        : code`Uint8Array`;
+      return ctx.options.useJsonWireFormat ? code`string` : code`Uint8Array`;
     case ".google.protobuf.ListValue":
       return code`Array<any>`;
     case ".google.protobuf.Value":
@@ -423,9 +418,7 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
     case ".google.protobuf.Struct":
       return code`{[key: string]: any}`;
     case ".google.protobuf.FieldMask":
-      return ctx.options.useJsonWireFormat
-        ? code`string`
-        : code`string[]`;
+      return ctx.options.useJsonWireFormat ? code`string` : code`string[]`;
     case ".google.protobuf.Duration":
       return ctx.options.useJsonWireFormat ? code`string` : undefined;
     case ".google.protobuf.Timestamp":
@@ -641,10 +634,7 @@ export function requestType(ctx: Context, methodDesc: MethodDescriptorProto): Co
   return typeName;
 }
 
-export function responseType(
-  ctx: Context,
-  methodDesc: MethodDescriptorProto,
-): Code {
+export function responseType(ctx: Context, methodDesc: MethodDescriptorProto): Code {
   return messageToTypeName(ctx, methodDesc.outputType, { keepValueType: true });
 }
 

@@ -11,19 +11,9 @@ import { Context } from "./context";
 import { generateEnum } from "./enums";
 import { generateGenericServiceDefinition } from "./generate-generic-service-definition";
 
-import {
-  generateRpcType,
-  generateService,
-  generateServiceClientImpl,
-} from "./generate-services";
+import { generateRpcType, generateService, generateServiceClientImpl } from "./generate-services";
 
-import {
-  DateOption,
-  JsonTimestampOption,
-  LongOption,
-  Options,
-  ServiceOption,
-} from "./options";
+import { DateOption, JsonTimestampOption, LongOption, Options, ServiceOption } from "./options";
 import SourceInfo, { Fields } from "./sourceInfo";
 import {
   basicTypeName,
@@ -93,7 +83,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
 
   // // Indicate this file's source protobuf package for reflective use with google.protobuf.Any
   // if (options.exportCommonSymbols) {
-    chunks.push(code`export const protobufPackage = '${fileDesc.package}';`);
+  chunks.push(code`export const protobufPackage = '${fileDesc.package}';`);
   // }
   //
   // Syntax, unlike most fields, is not repeated and thus does not use an index
@@ -123,37 +113,37 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
     },
   );
 
-    visit(
-      fileDesc,
-      sourceInfo,
-      (fullName, message, _sInfo, fullProtoTypeName) => {
-        const fullTypeName = maybePrefixPackage(fileDesc, fullProtoTypeName);
+  visit(
+    fileDesc,
+    sourceInfo,
+    (fullName, message, _sInfo, fullProtoTypeName) => {
+      const fullTypeName = maybePrefixPackage(fileDesc, fullProtoTypeName);
 
-        chunks.push(generateBaseInstanceFactory(ctx, fullName, message, fullTypeName));
+      chunks.push(generateBaseInstanceFactory(ctx, fullName, message, fullTypeName));
 
-        const staticMembers: Code[] = [];
+      const staticMembers: Code[] = [];
 
-          staticMembers.push(code`$type: '${fullTypeName}' as const`);
+      staticMembers.push(code`$type: '${fullTypeName}' as const`);
 
-            staticMembers.push(generateFromJson(ctx, fullName, fullTypeName, message));
-            staticMembers.push(generateToJson(ctx, fullName, fullTypeName, message));
-          staticMembers.push(generateFromPartial(ctx, fullName, message));
+      staticMembers.push(generateFromJson(ctx, fullName, fullTypeName, message));
+      staticMembers.push(generateToJson(ctx, fullName, fullTypeName, message));
+      staticMembers.push(generateFromPartial(ctx, fullName, message));
 
-        if (staticMembers.length > 0) {
-          chunks.push(code`
+      if (staticMembers.length > 0) {
+        chunks.push(code`
             export const ${def(fullName)} = {
               ${joinCode(staticMembers, { on: ",\n\n" })}
             };
           `);
-        }
+      }
 
-          const messageTypeRegistry = impFile(options, "messageTypeRegistry@./typeRegistry");
-          chunks.push(code`
+      const messageTypeRegistry = impFile(options, "messageTypeRegistry@./typeRegistry");
+      chunks.push(code`
             ${messageTypeRegistry}.set(${fullName}.$type, ${fullName});
           `);
-      },
-      options,
-    );
+    },
+    options,
+  );
   let hasStreamingMethods = false;
 
   visitServices(fileDesc, sourceInfo, (serviceDesc, sInfo) => {
@@ -218,7 +208,7 @@ export type Utils = ReturnType<typeof makeDeepPartial> &
   ReturnType<typeof makeTimestampMethods> &
   ReturnType<typeof makeByteUtils> &
   ReturnType<typeof makeComparisonUtils>;
-  
+
 /** These are runtime utility methods used by the generated code. */
 export function makeUtils(options: Options): Utils {
   const bytes = makeByteUtils();
@@ -368,7 +358,7 @@ function makeDeepPartial(options: Options, longs: ReturnType<typeof makeLongUtil
   );
 
   // Based on the type from ts-essentials
-  const keys =  code`Exclude<keyof T, '$type'>`;
+  const keys = code`Exclude<keyof T, '$type'>`;
   const DeepPartial = conditionalOutput(
     "DeepPartial",
     code`
@@ -438,8 +428,7 @@ function makeTimestampMethods(
 
   let seconds: string | Code = "Math.trunc(date.getTime() / 1_000)";
   let toNumberCode: string | Code = "t.seconds";
-  const makeToNumberCode = (methodCall: string) =>
-    `t.seconds${options.useOptionals === "all" || ""}.${methodCall}`;
+  const makeToNumberCode = (methodCall: string) => `t.seconds${options.useOptionals === "all" || ""}.${methodCall}`;
 
   if (options.forceLong === LongOption.LONG) {
     toNumberCode = makeToNumberCode("toNumber()");
@@ -584,7 +573,7 @@ function generateInterfaceDeclaration(
   sourceInfo: SourceInfo,
   fullTypeName: string,
 ): Code {
-  const { options} = ctx;
+  const { options } = ctx;
   const chunks: Code[] = [];
 
   addComment(sourceInfo, chunks, messageDesc.options?.deprecated);
@@ -602,7 +591,6 @@ function generateInterfaceDeclaration(
     chunks.push(code`${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
   });
 
-
   chunks.push(code`}`);
   return joinCode(chunks, { on: "\n" });
 }
@@ -614,7 +602,7 @@ function generateBaseInstanceFactory(
   messageDesc: DescriptorProto,
   fullTypeName: string,
 ): Code {
-  const { options} = ctx;
+  const { options } = ctx;
   const fields: Code[] = [];
 
   for (const field of messageDesc.field) {
@@ -632,7 +620,7 @@ function generateBaseInstanceFactory(
     fields.push(code`${fieldKey}: ${val}`);
   }
 
-    fields.unshift(code`$type: '${fullTypeName}'`);
+  fields.unshift(code`$type: '${fullTypeName}'`);
 
   return code`
     function createBase${fullName}(): ${fullName} {
@@ -772,7 +760,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         throw new Error(`Unhandled field ${field}`);
       }
     };
-      
+
     // and then use the snippet to handle repeated fields if necessary
     if (canonicalFromJson[fullTypeName]?.[fieldName]) {
       chunks.push(code`${fieldName}: ${canonicalFromJson[fullTypeName][fieldName]("object")},`);
@@ -819,8 +807,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
           `);
         }
       }
-    } 
-      else if (isAnyValueType(field)) {
+    } else if (isAnyValueType(field)) {
       chunks.push(code`${fieldKey}: ${ctx.utils.isSet}(${jsonPropertyOptional})
         ? ${readSnippet(`${jsonProperty}`)}
         : ${nullOrUndefined()},
@@ -1011,8 +998,7 @@ function generateToJson(
           ${jsonProperty} = ${messageProperty}${maybeMap};
         }
       `);
-    } 
-    else {
+    } else {
       let emitDefaultValuesForJson = ctx.options.emitDefaultValues.includes("json-methods");
       const check =
         (isScalar(field) || isEnum(field)) && !(isWithinOneOf(field) || emitDefaultValuesForJson)
@@ -1036,19 +1022,19 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
   const chunks: Code[] = [];
 
   // create the create function definition
-    chunks.push(code`
+  chunks.push(code`
       create<I extends ${utils.Exact}<${utils.DeepPartial}<${fullName}>, I>>(base?: I): ${fullName} {
         return ${fullName}.fromPartial(base ?? ({} as any));
       },
     `);
-    
+
   // create the fromPartial function declaration
   const paramName = messageDesc.field.length > 0 ? "object" : "_";
 
-    chunks.push(code`
+  chunks.push(code`
       fromPartial<I extends ${utils.Exact}<${utils.DeepPartial}<${fullName}>, I>>(${paramName}: I): ${fullName} {
     `);
-  
+
   let createBase = code`createBase${fullName}()`;
 
   chunks.push(code`const message = ${createBase};`);
@@ -1217,4 +1203,3 @@ function convertToObjectKey(
     return code`${variableName}`;
   }
 }
-

@@ -26,25 +26,24 @@ async function main() {
 
   let filesToGenerate: FileDescriptorProto[];
 
-    const fileSet = new Set();
-    function addFilesUnlessAliased(filenames: string[]) {
-      filenames
-        .forEach((name) => {
-          if (fileSet.has(name)) return;
-          fileSet.add(name);
-          const file = request.protoFile.find((file) => file.name === name);
-          if (file && file.dependency.length > 0) {
-            addFilesUnlessAliased(file.dependency);
-          }
-        });
-    }
-    addFilesUnlessAliased(request.fileToGenerate);
-    filesToGenerate = request.protoFile.filter((file) => fileSet.has(file.name));
+  const fileSet = new Set();
+  function addFilesUnlessAliased(filenames: string[]) {
+    filenames.forEach((name) => {
+      if (fileSet.has(name)) return;
+      fileSet.add(name);
+      const file = request.protoFile.find((file) => file.name === name);
+      if (file && file.dependency.length > 0) {
+        addFilesUnlessAliased(file.dependency);
+      }
+    });
+  }
+  addFilesUnlessAliased(request.fileToGenerate);
+  filesToGenerate = request.protoFile.filter((file) => fileSet.has(file.name));
 
   const files = await Promise.all(
     filesToGenerate.map(async (file) => {
       if (file.syntax !== "proto3") {
-        throw Error('Only proto3 files are supported');
+        throw Error("Only proto3 files are supported");
       }
       const [path, code] = generateFile({ ...ctx }, file);
       const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion, file.name), path });
@@ -52,11 +51,11 @@ async function main() {
     }),
   );
 
-    const path = "typeRegistry.ts";
-    const code = generateTypeRegistry(ctx);
+  const path = "typeRegistry.ts";
+  const code = generateTypeRegistry(ctx);
 
-    const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
-    files.push({ name: path, content });
+  const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
+  files.push({ name: path, content });
 
   const response = CodeGeneratorResponse.fromPartial({
     file: files,

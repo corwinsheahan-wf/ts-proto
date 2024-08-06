@@ -1,26 +1,14 @@
 import { MethodDescriptorProto, FileDescriptorProto, ServiceDescriptorProto } from "ts-proto-descriptors";
 import { Code, code, def, joinCode } from "ts-poet";
-import {
-  requestType,
-  rawRequestType,
-  responsePromiseOrObservable,
-  responseType,
-  observableType,
-} from "./types";
-import {
-  assertInstanceOf,
-  FormattedMethodDescriptor,
-  impFile,
-  addComment,
-  maybePrefixPackage,
-} from "./utils";
+import { requestType, rawRequestType, responsePromiseOrObservable, responseType, observableType } from "./types";
+import { assertInstanceOf, FormattedMethodDescriptor, impFile, addComment, maybePrefixPackage } from "./utils";
 import SourceInfo, { Fields } from "./sourceInfo";
 import { Context } from "./context";
 
 /**
  * Generates an interface for `serviceDesc`.
  *
-**/ 
+ **/
 export function generateService(
   ctx: Context,
   fileDesc: FileDescriptorProto,
@@ -39,12 +27,12 @@ export function generateService(
     addComment(info, chunks, methodDesc.options?.deprecated);
 
     const params: Code[] = [];
-    
+
     // the grpc-web clients auto-`fromPartial` the input before handing off to grpc-web's
     // serde runtime, so it's okay to accept partial results from the client
     const inputType = requestType(ctx, methodDesc);
     params.push(code`request: ${inputType}`);
-   
+
     chunks.push(
       code`${methodDesc.formattedName}(${joinCode(params, { on: "," })}): ${responsePromiseOrObservable(
         ctx,
@@ -90,7 +78,7 @@ function generateRegularRpcMethod(ctx: Context, methodDesc: MethodDescriptorProt
           ${responseType(ctx, methodDesc)})`;
 
     requestInvocation = code`return ${requestInvocation}`;
-    
+
     return code`${beforeRequest}
         ${requestInvocation}`;
   }
@@ -142,7 +130,7 @@ export function generateServiceClientImpl(
 
   // Create a method for each FooService method
   for (const methodDesc of serviceDesc.method) {
-      chunks.push(generateRegularRpcMethod(ctx, methodDesc));
+    chunks.push(generateRegularRpcMethod(ctx, methodDesc));
   }
 
   chunks.push(code`}`);
@@ -167,7 +155,7 @@ export function generateRpcType(ctx: Context, hasStreamingMethods: boolean): Cod
 
   // const outputGenericClient = options.outputClientImpl === "generic";
 
-  const maybeMessageTypeParams = code`reqType: ${messageType}, respType: ${messageType},`
+  const maybeMessageTypeParams = code`reqType: ${messageType}, respType: ${messageType},`;
   const maybeTypeParameters = "<Req, Res>";
   const requestType = "Req";
   const responseType = "Res";

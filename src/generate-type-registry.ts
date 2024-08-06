@@ -6,7 +6,7 @@ export function generateTypeRegistry(ctx: BaseContext): Code {
 
   chunks.push(generateMessageType(ctx));
 
-    chunks.push(code`
+  chunks.push(code`
     export type UnknownMessage = {$type: string};
   `);
 
@@ -24,12 +24,12 @@ function generateMessageType(ctx: BaseContext): Code {
 
   chunks.push(code`export interface MessageType<Message extends UnknownMessage = UnknownMessage> {`);
 
-    chunks.push(code`$type: Message['$type'];`);
+  chunks.push(code`$type: Message['$type'];`);
 
-    chunks.push(code`fromJSON(object: any): Message;`);
-    chunks.push(code`toJSON(message: Message): unknown;`);
+  chunks.push(code`fromJSON(object: any): Message;`);
+  chunks.push(code`toJSON(message: Message): unknown;`);
 
-    chunks.push(code`fromPartial(object: ${ctx.utils.DeepPartial}<Message>): Message;`);
+  chunks.push(code`fromPartial(object: ${ctx.utils.DeepPartial}<Message>): Message;`);
 
   chunks.push(code`}`);
 

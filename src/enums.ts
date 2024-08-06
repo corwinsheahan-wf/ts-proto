@@ -23,7 +23,7 @@ export function generateEnum(
   // if (options.enumsAsLiterals) {
   //   chunks.push(code`export const ${def(fullName)} = {`);
   // } else {
-    chunks.push(code`export enum ${def(fullName)} {`);
+  chunks.push(code`export enum ${def(fullName)} {`);
   // }
 
   const delimiter = "=";
@@ -35,21 +35,19 @@ export function generateEnum(
       unrecognizedEnum = { present: true, name: memberName };
     }
     addComment(info, chunks, valueDesc.options?.deprecated, `${memberName} - `);
-    chunks.push(
-      code`${memberName} ${delimiter} ${valueDesc.number.toString()},`,
-    );
+    chunks.push(code`${memberName} ${delimiter} ${valueDesc.number.toString()},`);
   });
 
   if (options.unrecognizedEnum && !unrecognizedEnum.present) {
     chunks.push(code`${options.unrecognizedEnumName} ${delimiter} ${options.unrecognizedEnumValue.toString()},`);
   }
 
-    chunks.push(code`}`);
+  chunks.push(code`}`);
 
-    chunks.push(code`\n`);
-    chunks.push(generateEnumFromJson(ctx, fullName, enumDesc, unrecognizedEnum));
-    chunks.push(code`\n`);
-    chunks.push(generateEnumToJson(ctx, fullName, enumDesc, unrecognizedEnum));
+  chunks.push(code`\n`);
+  chunks.push(generateEnumFromJson(ctx, fullName, enumDesc, unrecognizedEnum));
+  chunks.push(code`\n`);
+  chunks.push(generateEnumToJson(ctx, fullName, enumDesc, unrecognizedEnum));
   return joinCode(chunks, { on: "\n" });
 }
 
@@ -116,9 +114,7 @@ export function generateEnumToJson(
   const chunks: Code[] = [];
 
   const functionName = uncapitalize(fullName) + "ToJSON";
-  chunks.push(
-    code`export function ${def(functionName)}(object: ${fullName}): string {`,
-  );
+  chunks.push(code`export function ${def(functionName)}(object: ${fullName}): string {`);
   chunks.push(code`switch (object) {`);
 
   for (const valueDesc of enumDesc.value) {
@@ -132,12 +128,11 @@ export function generateEnumToJson(
       chunks.push(code`
         case ${fullName}.${options.unrecognizedEnumName}:`);
 
-        chunks.push(code`
+      chunks.push(code`
         default:
           return "${options.unrecognizedEnumName}";
       `);
-    } 
-    else {
+    } else {
       chunks.push(code`
       default:
         return "${unrecognizedEnum.name}";
