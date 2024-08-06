@@ -11,7 +11,7 @@ import {
   assertInstanceOf,
   FormattedMethodDescriptor,
   impFile,
-  maybeAddComment,
+  addComment,
   maybePrefixPackage,
 } from "./utils";
 import SourceInfo, { Fields } from "./sourceInfo";
@@ -30,13 +30,13 @@ export function generateService(
   const { options } = ctx;
   const chunks: Code[] = [];
 
-  maybeAddComment(options, sourceInfo, chunks, serviceDesc.options?.deprecated);
+  addComment(sourceInfo, chunks, serviceDesc.options?.deprecated);
   chunks.push(code`export interface ${def(serviceDesc.name)} {`);
 
   serviceDesc.method.forEach((methodDesc, index) => {
     assertInstanceOf(methodDesc, FormattedMethodDescriptor);
     const info = sourceInfo.lookup(Fields.service.method, index);
-    maybeAddComment(options, info, chunks, methodDesc.options?.deprecated);
+    addComment(info, chunks, methodDesc.options?.deprecated);
 
     const params: Code[] = [];
     

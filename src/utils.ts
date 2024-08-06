@@ -96,17 +96,12 @@ export function upperFirst(name: string): string {
 const CloseComment = /\*\//g;
 
 /** Removes potentially harmful characters from comments and pushes it into chunks. */
-export function maybeAddComment(
-  options: Pick<Options, "comments">,
+export function addComment(
   desc: Partial<Pick<SourceDescription, "leadingComments" | "trailingComments">>,
   chunks: Code[],
   deprecated?: boolean,
   prefix: string = "",
 ): void {
-  if (!options.comments) {
-    return;
-  }
-
   let lines: string[] = [];
   if (desc.leadingComments || desc.trailingComments) {
     let content = (desc.leadingComments || desc.trailingComments || "").replace(CloseComment, "* /").trim();
@@ -273,9 +268,9 @@ export function impFile(options: Options, spec: string) {
 export function impProto(options: Options, module: string, type: string): Import {
   const prefix = "";
   const protoFile = `${module}.proto`;
-  if (options.M[protoFile]) {
-    return imp(`${prefix}${type}@${options.M[protoFile]}`);
-  }
+  // if (options.M[protoFile]) {
+  //   return imp(`${prefix}${type}@${options.M[protoFile]}`);
+  // }
   return imp(`${prefix}${type}@./${module}${options.fileSuffix}${options.importSuffix}`);
 }
 
@@ -286,14 +281,15 @@ export function arrowFunction(params: string, body: Code | string, isOneLine: bo
   return code`(${params}) => { ${body} }`;
 }
 
-export function nullOrUndefined(options: Pick<Options, "useNullAsOptional">, hasProto3Optional: boolean = false) {
-  return options.useNullAsOptional ? `null ${hasProto3Optional ? "| undefined" : ""}` : "undefined";
+export function nullOrUndefined(hasProto3Optional: boolean = false) {
+  // return options.useNullAsOptional ? `null ${hasProto3Optional ? "| undefined" : ""}` : "undefined";
+  return "undefined";
 }
-export function maybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string, prefix?: string) {
-  return options.useNullAsOptional ? ` ${prefix} ${typeName} !== null` : "";
+export function maybeCheckIsNotNull(typeName: string, prefix?: string) {
+  return "";
 }
-export function withAndMaybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNotNull(options, typeName, "&&");
+export function withAndMaybeCheckIsNotNull(typeName: string) {
+  return maybeCheckIsNotNull(typeName, "&&");
 }
 
 export async function getVersions(request: CodeGeneratorRequest) {

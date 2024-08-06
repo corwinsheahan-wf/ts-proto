@@ -32,7 +32,7 @@ async function main() {
     const fileSet = new Set();
     function addFilesUnlessAliased(filenames: string[]) {
       filenames
-        .filter((name) => !options.M[name])
+        // .filter((name) => !options.M[name])
         .forEach((name) => {
           if (fileSet.has(name)) return;
           fileSet.add(name);
@@ -67,12 +67,12 @@ async function main() {
     files.push({ name: path, content });
   // }
 
-  if (options.outputIndex) {
-    for (const [path, code] of generateIndexFiles(filesToGenerate, options)) {
-      const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
-      files.push({ name: path, content });
-    }
-  }
+  // if (options.outputIndex) {
+  //   for (const [path, code] of generateIndexFiles(filesToGenerate, options)) {
+  //     const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
+  //     files.push({ name: path, content });
+  //   }
+  // }
 
   const response = CodeGeneratorResponse.fromPartial({
     file: files,

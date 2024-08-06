@@ -179,11 +179,11 @@ export function getFieldOptionsJsType(
 export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
   const { typeMap, options, utils, currentFile } = ctx;
 
-  if (options.noDefaultsForOptionals) {
-    return options.useNullAsOptional ? null : undefined;
-  }
+  // if (options.noDefaultsForOptionals) {
+  //   return options.useNullAsOptional ? null : undefined;
+  // }
 
-  const useDefaultValue = !currentFile.isProto3Syntax && !options.disableProto2DefaultValues && field.defaultValue;
+  const useDefaultValue = false;
   const numericDefaultVal = useDefaultValue ? field.defaultValue : 0;
   switch (field.type) {
     case FieldDescriptorProto_Type.TYPE_DOUBLE:
@@ -250,7 +250,7 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
     case FieldDescriptorProto_Type.TYPE_MESSAGE:
     case FieldDescriptorProto_Type.TYPE_GROUP:
     default:
-      return nullOrUndefined(options);
+      return nullOrUndefined();
   }
 }
 
@@ -265,14 +265,14 @@ export function notDefaultCheck(
 
   const isOptional = isOptionalProperty(field, messageOptions, options, currentFile.isProto3Syntax);
 
-  if (options.noDefaultsForOptionals) {
-    return isOptional
-      ? code`${place} !== undefined ${withAndMaybeCheckIsNotNull(options, place)}`
-      : code`${place} !== undefined`;
-  }
+  // if (options.noDefaultsForOptionals) {
+  //   return isOptional
+  //     ? code`${place} !== undefined ${withAndMaybeCheckIsNotNull(options, place)}`
+  //     : code`${place} !== undefined`;
+  // }
 
   const maybeNotUndefinedAnd = isOptional
-    ? `${place} !== undefined ${withAndMaybeCheckIsNotNull(options, place)} &&`
+    ? `${place} !== undefined ${withAndMaybeCheckIsNotNull(place)} &&`
     : "";
 
   switch (field.type) {
@@ -389,12 +389,8 @@ export function isOptionalProperty(
   return (
     (optionalMessages && isMessage(field) && !isRepeated(field)) ||
     ((optionalAll || deprecatedOnly) && !messageOptions?.mapEntry) ||
-    (options.noDefaultsForOptionals && !isRepeated(field) && (isScalar(field) || isEnum(field))) ||
+    // (options.noDefaultsForOptionals && !isRepeated(field) && (isScalar(field) || isEnum(field))) ||
     // file is proto2, we have enabled proto2 optionals, and the field itself is optional
-    (!isProto3Syntax &&
-      field.label === FieldDescriptorProto_Label.LABEL_OPTIONAL &&
-      !messageOptions?.mapEntry &&
-      !options.disableProto2Optionals) ||
     // don't bother verifying that oneof is not union. union oneofs generate their own properties.
     isWithinOneOf(field) ||
     field.proto3Optional
@@ -603,7 +599,7 @@ export function messageToTypeName(
     if (typeOptions.repeated ?? false) {
       return valueType;
     }
-    return code`${valueType} | ${nullOrUndefined(options)}`;
+    return code`${valueType} | ${nullOrUndefined()}`;
   }
   // Look for other special prototypes like Timestamp that aren't technically wrapper types
   if (!typeOptions.keepValueType && protoType === ".google.protobuf.Timestamp") {
@@ -639,7 +635,7 @@ export function toTypeName(
 ): Code {
   function finalize(type: Code, isOptional: boolean) {
     if (isOptional) {
-      return code`${type} | ${nullOrUndefined(ctx.options, field.proto3Optional)}`;
+      return code`${type} | ${nullOrUndefined(field.proto3Optional)}`;
     }
     return type;
   }

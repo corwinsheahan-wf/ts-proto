@@ -1,6 +1,6 @@
 import { code, def, Code, joinCode } from "ts-poet";
 import { EnumDescriptorProto, EnumValueDescriptorProto } from "ts-proto-descriptors";
-import { maybeAddComment } from "./utils";
+import { addComment } from "./utils";
 import { uncapitalize, camelToSnake } from "./case";
 import SourceInfo, { Fields } from "./sourceInfo";
 import { Context } from "./context";
@@ -18,7 +18,7 @@ export function generateEnum(
   const chunks: Code[] = [];
   let unrecognizedEnum: UnrecognizedEnum = { present: false };
 
-  maybeAddComment(options, sourceInfo, chunks, enumDesc.options?.deprecated);
+  addComment(sourceInfo, chunks, enumDesc.options?.deprecated);
 
   // if (options.enumsAsLiterals) {
   //   chunks.push(code`export const ${def(fullName)} = {`);
@@ -34,7 +34,7 @@ export function generateEnum(
     if (valueDesc.number === options.unrecognizedEnumValue) {
       unrecognizedEnum = { present: true, name: memberName };
     }
-    maybeAddComment(options, info, chunks, valueDesc.options?.deprecated, `${memberName} - `);
+    addComment(info, chunks, valueDesc.options?.deprecated, `${memberName} - `);
     chunks.push(
       code`${memberName} ${delimiter} ${valueDesc.number.toString()},`,
     );

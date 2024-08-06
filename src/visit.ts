@@ -53,7 +53,7 @@ export function visit(
     const tsFullName = tsPrefix + maybeSnakeToCamel(messageName(message), options);
     const nestedSourceInfo = sourceInfo.open(childType, index);
     messageFn(tsFullName, message, nestedSourceInfo, protoFullName);
-    const delim = options.useSnakeTypeName ? "_" : "";
+    const delim = "";
     visit(message, nestedSourceInfo, messageFn, options, enumFn, tsFullName + delim, protoFullName + ".");
   });
 }

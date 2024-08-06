@@ -68,7 +68,7 @@ import {
   getPropertyAccessor,
   impFile,
   impProto,
-  maybeAddComment,
+  addComment,
   maybePrefixPackage,
   nullOrUndefined,
   safeAccessor,
@@ -102,7 +102,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   // Syntax, unlike most fields, is not repeated and thus does not use an index
   const sourceInfo = SourceInfo.fromDescriptor(fileDesc);
   const headerComment = sourceInfo.lookup(Fields.file.syntax, undefined);
-  maybeAddComment(options, headerComment, chunks, fileDesc.options?.deprecated);
+  addComment(headerComment, chunks, fileDesc.options?.deprecated);
 
   // Apply formatting to methods here, so they propagate globally
   for (let svc of fileDesc.service) {
@@ -592,7 +592,7 @@ function makeTimestampMethods(
   let seconds: string | Code = "Math.trunc(date.getTime() / 1_000)";
   let toNumberCode: string | Code = "t.seconds";
   const makeToNumberCode = (methodCall: string) =>
-    `t.seconds${options.useOptionals === "all" || options.noDefaultsForOptionals ? "?" : ""}.${methodCall}`;
+    `t.seconds${options.useOptionals === "all" || ""}.${methodCall}`;
 
   if (options.forceLong === LongOption.LONG) {
     toNumberCode = makeToNumberCode("toNumber()");
@@ -740,7 +740,7 @@ function generateInterfaceDeclaration(
   const { options, currentFile } = ctx;
   const chunks: Code[] = [];
 
-  maybeAddComment(options, sourceInfo, chunks, messageDesc.options?.deprecated);
+  addComment(sourceInfo, chunks, messageDesc.options?.deprecated);
   // interface name should be defined to avoid import collisions
   chunks.push(code`export interface ${def(fullName)} {`);
 
@@ -753,7 +753,7 @@ function generateInterfaceDeclaration(
 
   messageDesc.field.forEach((fieldDesc, index) => {
     const info = sourceInfo.lookup(Fields.message.field, index);
-    maybeAddComment(options, info, chunks, fieldDesc.options?.deprecated);
+    addComment(info, chunks, fieldDesc.options?.deprecated);
     const fieldKey = safeAccessor(getFieldName(fieldDesc, options));
     const isOptional = isOptionalProperty(fieldDesc, messageDesc.options, options, currentFile.isProto3Syntax);
     const type = toTypeName(ctx, messageDesc, fieldDesc, isOptional);
@@ -804,7 +804,7 @@ function generateBaseInstanceFactory(
 
     const fieldKey = safeAccessor(getFieldName(field, options));
     const val = isWithinOneOf(field)
-      ? nullOrUndefined(options)
+      ? nullOrUndefined()
       : isMapType(ctx, messageDesc, field)
       ? shouldGenerateJSMapType(ctx, messageDesc, field)
         ? "new Map()"
@@ -1234,7 +1234,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         const i = convertFromObjectKey(ctx, messageDesc, field, "key");
 
         if (shouldGenerateJSMapType(ctx, messageDesc, field)) {
-          const fallback = noDefaultValue ? nullOrUndefined(options) : "new Map()";
+          const fallback = noDefaultValue ? nullOrUndefined() : "new Map()";
 
           chunks.push(code`
             ${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
@@ -1245,7 +1245,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
               : ${fallback},
           `);
         } else {
-          const fallback = noDefaultValue ? nullOrUndefined(options) : "{}";
+          const fallback = noDefaultValue ? nullOrUndefined() : "{}";
 
           chunks.push(code`
             ${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
@@ -1257,7 +1257,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
           `);
         }
       } else {
-        const fallback = noDefaultValue ? nullOrUndefined(options) : "[]";
+        const fallback = noDefaultValue ? nullOrUndefined() : "[]";
 
         const readValueSnippet = readSnippet("e");
         if (readValueSnippet.toString() === code`e`.toString()) {
@@ -1293,22 +1293,22 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
       else if (isAnyValueType(field)) {
       chunks.push(code`${fieldKey}: ${ctx.utils.isSet}(${jsonPropertyOptional})
         ? ${readSnippet(`${jsonProperty}`)}
-        : ${nullOrUndefined(options)},
+        : ${nullOrUndefined()},
       `);
     } else if (isStructType(field)) {
       chunks.push(
         code`${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
           ? ${readSnippet(`${jsonProperty}`)}
-          : ${nullOrUndefined(options)},`,
+          : ${nullOrUndefined()},`,
       );
     } else if (isListValueType(field)) {
       chunks.push(code`
         ${fieldKey}: ${ctx.utils.globalThis}.Array.isArray(${jsonProperty})
           ? ${readSnippet(`${jsonProperty}`)}
-          : ${nullOrUndefined(options)},
+          : ${nullOrUndefined()},
       `);
     } else {
-      const fallback = isWithinOneOf(field) || noDefaultValue ? nullOrUndefined(options) : defaultValue(ctx, field);
+      const fallback = isWithinOneOf(field) || noDefaultValue ? nullOrUndefined() : defaultValue(ctx, field);
       chunks.push(code`
         ${fieldKey}: ${ctx.utils.isSet}(${jsonProperty})
           ? ${readSnippet(`${jsonProperty}`)}
@@ -1325,10 +1325,10 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
 function generateCanonicalToJson(
   fullName: string,
   fullProtobufTypeName: string,
-  { useOptionals, useNullAsOptional }: Options,
+  { useOptionals }: Options,
 ): Code | undefined {
   if (isFieldMaskTypeName(fullProtobufTypeName)) {
-    const returnType = useOptionals === "all" ? `string | ${nullOrUndefined({ useNullAsOptional })}` : "string";
+    const returnType = useOptionals === "all" ? `string | ${nullOrUndefined()}` : "string";
     const pathModifier = useOptionals === "all" ? "?" : "";
 
     return code`
@@ -1498,7 +1498,7 @@ function generateToJson(
       const check =
         (isScalar(field) || isEnum(field)) && !(isWithinOneOf(field) || emitDefaultValuesForJson)
           ? notDefaultCheck(ctx, field, messageDesc.options, `${messageProperty}`)
-          : `${messageProperty} !== undefined ${withAndMaybeCheckIsNotNull(options, messageProperty)}`;
+          : `${messageProperty} !== undefined ${withAndMaybeCheckIsNotNull(messageProperty)}`;
 
       chunks.push(code`
         if (${check}) {
