@@ -44,40 +44,12 @@ export function generateEnum(
     chunks.push(code`${options.unrecognizedEnumName} ${delimiter} ${options.unrecognizedEnumValue.toString()},`);
   }
 
-  // if (options.enumsAsLiterals) {
-  //   chunks.push(code`} as const`);
-  //   chunks.push(code`\n`);
-  //   chunks.push(code`export type ${def(fullName)} = typeof ${def(fullName)}[keyof typeof ${def(fullName)}]`);
-  //   chunks.push(code`\n`);
-  //   chunks.push(code`export namespace ${def(fullName)} {`);
-  //
-  //   enumDesc.value.forEach((valueDesc) => {
-  //     const memberName = getMemberName(ctx, enumDesc, valueDesc);
-  //     chunks.push(code`export type ${memberName} = typeof ${def(fullName)}.${memberName};`);
-  //   });
-  //
-  //   if (options.unrecognizedEnum && !unrecognizedEnum.present) {
-  //     chunks.push(
-  //       code`export type ${options.unrecognizedEnumName} = typeof ${def(fullName)}.${options.unrecognizedEnumName};`,
-  //     );
-  //   }
-  //
-  //   chunks.push(code`}`);
-  // } else {
     chunks.push(code`}`);
-  // }
 
-  // if (
-  //   options.outputJsonMethods === true ||
-  //   options.outputJsonMethods === "from-only"
-  // ) {
     chunks.push(code`\n`);
     chunks.push(generateEnumFromJson(ctx, fullName, enumDesc, unrecognizedEnum));
-  // }
-  // if (options.outputJsonMethods === true || options.outputJsonMethods === "to-only") {
     chunks.push(code`\n`);
     chunks.push(generateEnumToJson(ctx, fullName, enumDesc, unrecognizedEnum));
-  // }
   return joinCode(chunks, { on: "\n" });
 }
 
@@ -120,11 +92,11 @@ export function generateEnumFromJson(
       `);
     }
   } else {
-    // // We use globalThis to avoid conflicts on protobuf types named `Error`.
-    // chunks.push(code`
-    //   default:
-    //     throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
-    // `);
+    // We use globalThis to avoid conflicts on protobuf types named `Error`.
+    chunks.push(code`
+      default:
+        throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
+    `);
   }
 
   chunks.push(code`}`);
@@ -160,24 +132,11 @@ export function generateEnumToJson(
       chunks.push(code`
         case ${fullName}.${options.unrecognizedEnumName}:`);
 
-      // if (ctx.options.useNumericEnumForJson) {
-      //   chunks.push(code`
-      //   default:
-      //     return ${options.unrecognizedEnumValue};
-      // `);
-      // } else {
         chunks.push(code`
         default:
           return "${options.unrecognizedEnumName}";
       `);
-      // }
     } 
-    // else if (ctx.options.useNumericEnumForJson) {
-    //   chunks.push(code`
-    //     default:
-    //       return ${options.unrecognizedEnumValue};
-    //   `);
-    // } 
     else {
       chunks.push(code`
       default:
@@ -185,11 +144,11 @@ export function generateEnumToJson(
     `);
     }
   } else {
-    // // We use globalThis to avoid conflicts on protobuf types named `Error`.
-    // chunks.push(code`
-    //   default:
-    //     throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
-    // `);
+    // We use globalThis to avoid conflicts on protobuf types named `Error`.
+    chunks.push(code`
+      default:
+        throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
+    `);
   }
 
   chunks.push(code`}`);
@@ -229,11 +188,11 @@ export function generateEnumToNumber(
       `);
     }
   } else {
-    // // We use globalThis to avoid conflicts on protobuf types named `Error`.
-    // chunks.push(code`
-    //   default:
-    //     throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
-    // `);
+    // We use globalThis to avoid conflicts on protobuf types named `Error`.
+    chunks.push(code`
+      default:
+        throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
+    `);
   }
 
   chunks.push(code`}`);
@@ -246,9 +205,6 @@ export function getMemberName(
   enumDesc: EnumDescriptorProto,
   valueDesc: EnumValueDescriptorProto,
 ): string {
-  // if (ctx.options.removeEnumPrefix) {
-  //   return valueDesc.name.replace(`${camelToSnake(enumDesc.name)}_`, "");
-  // }
   return valueDesc.name;
 }
 

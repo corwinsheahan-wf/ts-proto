@@ -14,8 +14,7 @@ import {
 } from "ts-proto-descriptors";
 import { uncapitalize } from "./case";
 import { Context } from "./context";
-import { getMemberName as getEnumMemberName } from "./enums";
-import { DateOption, EnvOption, LongOption, OneofOption, Options } from "./options";
+import { DateOption, LongOption, Options } from "./options";
 import SourceInfo from "./sourceInfo";
 import {
   FormattedMethodDescriptor,
@@ -74,11 +73,7 @@ export function basicTypeName(
     case FieldDescriptorProto_Type.TYPE_STRING:
       return code`string`;
     case FieldDescriptorProto_Type.TYPE_BYTES:
-      // if (options.env === EnvOption.NODE) {
-      //   return code`Buffer`;
-      // } else {
         return code`Uint8Array`;
-      // }
     case FieldDescriptorProto_Type.TYPE_MESSAGE:
     case FieldDescriptorProto_Type.TYPE_GROUP:
     case FieldDescriptorProto_Type.TYPE_ENUM:
@@ -88,72 +83,6 @@ export function basicTypeName(
   }
 }
 
-/** Returns the Reader method for the primitive's read/write call. */
-export function toReaderCall(field: FieldDescriptorProto): string {
-  switch (field.type) {
-    case FieldDescriptorProto_Type.TYPE_DOUBLE:
-      return "double";
-    case FieldDescriptorProto_Type.TYPE_FLOAT:
-      return "float";
-    case FieldDescriptorProto_Type.TYPE_INT32:
-    case FieldDescriptorProto_Type.TYPE_ENUM:
-      return "int32";
-    case FieldDescriptorProto_Type.TYPE_UINT32:
-      return "uint32";
-    case FieldDescriptorProto_Type.TYPE_SINT32:
-      return "sint32";
-    case FieldDescriptorProto_Type.TYPE_FIXED32:
-      return "fixed32";
-    case FieldDescriptorProto_Type.TYPE_SFIXED32:
-      return "sfixed32";
-    case FieldDescriptorProto_Type.TYPE_INT64:
-      return "int64";
-    case FieldDescriptorProto_Type.TYPE_UINT64:
-      return "uint64";
-    case FieldDescriptorProto_Type.TYPE_SINT64:
-      return "sint64";
-    case FieldDescriptorProto_Type.TYPE_FIXED64:
-      return "fixed64";
-    case FieldDescriptorProto_Type.TYPE_SFIXED64:
-      return "sfixed64";
-    case FieldDescriptorProto_Type.TYPE_BOOL:
-      return "bool";
-    case FieldDescriptorProto_Type.TYPE_STRING:
-      return "string";
-    case FieldDescriptorProto_Type.TYPE_BYTES:
-      return "bytes";
-    default:
-      throw new Error(`Not a primitive field ${field}`);
-  }
-}
-
-export function packedType(type: FieldDescriptorProto_Type): number | undefined {
-  switch (type) {
-    case FieldDescriptorProto_Type.TYPE_DOUBLE:
-      return 1;
-    case FieldDescriptorProto_Type.TYPE_FLOAT:
-      return 5;
-    case FieldDescriptorProto_Type.TYPE_INT32:
-    case FieldDescriptorProto_Type.TYPE_ENUM:
-    case FieldDescriptorProto_Type.TYPE_UINT32:
-    case FieldDescriptorProto_Type.TYPE_SINT32:
-      return 0;
-    case FieldDescriptorProto_Type.TYPE_FIXED32:
-    case FieldDescriptorProto_Type.TYPE_SFIXED32:
-      return 5;
-    case FieldDescriptorProto_Type.TYPE_INT64:
-    case FieldDescriptorProto_Type.TYPE_UINT64:
-    case FieldDescriptorProto_Type.TYPE_SINT64:
-      return 0;
-    case FieldDescriptorProto_Type.TYPE_FIXED64:
-    case FieldDescriptorProto_Type.TYPE_SFIXED64:
-      return 1;
-    case FieldDescriptorProto_Type.TYPE_BOOL:
-      return 0;
-    default:
-      return undefined;
-  }
-}
 
 export function getFieldOptionsJsType(
   field: FieldDescriptorProto,
@@ -177,11 +106,7 @@ export function getFieldOptionsJsType(
 }
 
 export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
-  const { typeMap, options, utils, currentFile } = ctx;
-
-  // if (options.noDefaultsForOptionals) {
-  //   return options.useNullAsOptional ? null : undefined;
-  // }
+  const { typeMap, options} = ctx;
 
   const useDefaultValue = false;
   const numericDefaultVal = useDefaultValue ? field.defaultValue : 0;
@@ -204,13 +129,7 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
       const defaultEnum =
         enumProto.value.find((v) => (useDefaultValue ? v.name === field.defaultValue : v.number === 0)) ||
         enumProto.value[0];
-
-      // if (options.stringEnums) {
-      //   const enumType = messageToTypeName(ctx, field.typeName);
-      //   return code`${enumType}.${getEnumMemberName(ctx, enumProto, defaultEnum)}`;
-      // } else {
         return defaultEnum.number;
-      // }
 
     case FieldDescriptorProto_Type.TYPE_INT64:
     case FieldDescriptorProto_Type.TYPE_UINT64:
@@ -226,14 +145,6 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
         }
       }
 
-      // if (options.forceLong === LongOption.LONG) {
-      //   const value =
-      //     field.type === FieldDescriptorProto_Type.TYPE_UINT64 || field.type === FieldDescriptorProto_Type.TYPE_FIXED64
-      //       ? "UZERO"
-      //       : "ZERO";
-      //   return code`${utils.Long}.${useDefaultValue ? "fromNumber" : value}${
-      //     useDefaultValue ? `(${numericDefaultVal})` : ""
-      //   }`;
       if (options.forceLong === LongOption.STRING) {
         return `"${numericDefaultVal}"`;
       } else if (options.forceLong === LongOption.BIGINT) {
@@ -261,15 +172,9 @@ export function notDefaultCheck(
   messageOptions: MessageOptions | undefined,
   place: string,
 ): Code {
-  const { typeMap, options, currentFile } = ctx;
+  const { typeMap, options} = ctx;
 
-  const isOptional = isOptionalProperty(field, messageOptions, options, currentFile.isProto3Syntax);
-
-  // if (options.noDefaultsForOptionals) {
-  //   return isOptional
-  //     ? code`${place} !== undefined ${withAndMaybeCheckIsNotNull(options, place)}`
-  //     : code`${place} !== undefined`;
-  // }
+  const isOptional = isOptionalProperty(field, messageOptions, options);
 
   const maybeNotUndefinedAnd = isOptional
     ? `${place} !== undefined ${withAndMaybeCheckIsNotNull(place)} &&`
@@ -379,7 +284,6 @@ export function isOptionalProperty(
   field: FieldDescriptorProto,
   messageOptions: MessageOptions | undefined,
   options: Options,
-  isProto3Syntax: boolean,
 ): boolean {
   const optionalMessages =
     options.useOptionals === true || options.useOptionals === "messages" || options.useOptionals === "all";
@@ -445,11 +349,6 @@ export function isMapType(ctx: Context, messageDesc: DescriptorProto, field: Fie
   return detectMapType(ctx, messageDesc, field) !== undefined;
 }
 
-export function isObjectId(field: FieldDescriptorProto): boolean {
-  // need to use endsWith instead of === because objectid could be imported from an external proto file
-  return field.typeName.endsWith(".ObjectId");
-}
-
 export function isTimestamp(field: FieldDescriptorProto): boolean {
   return field.typeName === ".google.protobuf.Timestamp";
 }
@@ -498,10 +397,6 @@ export function isLongValueType(field: FieldDescriptorProto): boolean {
   return field.typeName === ".google.protobuf.Int64Value" || field.typeName === ".google.protobuf.UInt64Value";
 }
 
-export function isEmptyType(typeName: string): boolean {
-  return typeName === ".google.protobuf.Empty";
-}
-
 export function valueTypeName(ctx: Context, typeName: string): Code | undefined {
   switch (typeName) {
     case ".google.protobuf.StringValue":
@@ -540,29 +435,8 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
   }
 }
 
-export function wrapperTypeName(typeName: string): string | undefined {
-  switch (typeName) {
-    case ".google.protobuf.StringValue":
-    case ".google.protobuf.Int32Value":
-    case ".google.protobuf.UInt32Value":
-    case ".google.protobuf.DoubleValue":
-    case ".google.protobuf.FloatValue":
-    case ".google.protobuf.Int64Value":
-    case ".google.protobuf.UInt64Value":
-    case ".google.protobuf.BoolValue":
-    case ".google.protobuf.BytesValue":
-    case ".google.protobuf.ListValue":
-    case ".google.protobuf.Timestamp":
-    case ".google.protobuf.Struct":
-    case ".google.protobuf.Value":
-      return typeName.split(".")[3];
-    default:
-      return undefined;
-  }
-}
-
 function longTypeName(ctx: Context): Code {
-  const { options, utils } = ctx;
+  const { options } = ctx;
   // if (options.forceLong === LongOption.LONG) {
   //   return code`${utils.Long}`;
   // } else
@@ -653,9 +527,6 @@ export function toTypeName(
       }
       return finalize(code`{ [key: ${keyType} ]: ${valueType} }`, ensureOptional);
     }
-    // if (ctx.options.useReadonlyTypes) {
-    //   return finalize(code`readonly ${type}[]`, ensureOptional);
-    // }
     return finalize(code`${type}[]`, ensureOptional);
   }
 
@@ -761,7 +632,7 @@ export function observableType(ctx: Context, asType: boolean = false): Code {
   }
 }
 
-export function requestType(ctx: Context, methodDesc: MethodDescriptorProto, partial: boolean = false): Code {
+export function requestType(ctx: Context, methodDesc: MethodDescriptorProto): Code {
   let typeName = rawRequestType(ctx, methodDesc, { keepValueType: true });
 
   if (methodDesc.clientStreaming) {
@@ -773,17 +644,16 @@ export function requestType(ctx: Context, methodDesc: MethodDescriptorProto, par
 export function responseType(
   ctx: Context,
   methodDesc: MethodDescriptorProto,
-  typeOptions: { keepValueType?: boolean; repeated?: boolean } = {},
 ): Code {
   return messageToTypeName(ctx, methodDesc.outputType, { keepValueType: true });
 }
 
 export function responsePromise(ctx: Context, methodDesc: MethodDescriptorProto): Code {
-  return code`Promise<${responseType(ctx, methodDesc, { keepValueType: true })}>`;
+  return code`Promise<${responseType(ctx, methodDesc)}>`;
 }
 
 export function responseObservable(ctx: Context, methodDesc: MethodDescriptorProto): Code {
-  return code`${observableType(ctx)}<${responseType(ctx, methodDesc, { keepValueType: true })}>`;
+  return code`${observableType(ctx)}<${responseType(ctx, methodDesc)}>`;
 }
 
 export function responsePromiseOrObservable(ctx: Context, methodDesc: MethodDescriptorProto): Code {

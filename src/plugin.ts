@@ -5,18 +5,16 @@ import {
   FileDescriptorProto,
 } from "ts-proto-descriptors";
 import { promisify } from "util";
-import { generateIndexFiles, getVersions, protoFilesToGenerate, readToBuffer } from "./utils";
+import { getVersions, readToBuffer } from "./utils";
 import { generateFile, makeUtils } from "./main";
 import { createTypeMap } from "./types";
-import { BaseContext, createFileContext } from "./context";
+import { BaseContext } from "./context";
 import { getTsPoetOpts, optionsFromParameter } from "./options";
 import { generateTypeRegistry } from "./generate-type-registry";
 
 // this would be the plugin called by the protoc compiler
 async function main() {
   const stdin = await readToBuffer(process.stdin);
-  // const json = JSON.parse(stdin.toString());
-  // const request = CodeGeneratorRequest.fromObject(json);
   const request = CodeGeneratorRequest.decode(stdin);
 
   const { protocVersion, tsProtoVersion } = await getVersions(request);
@@ -28,11 +26,9 @@ async function main() {
 
   let filesToGenerate: FileDescriptorProto[];
 
-  // if (options.emitImportedFiles) {
     const fileSet = new Set();
     function addFilesUnlessAliased(filenames: string[]) {
       filenames
-        // .filter((name) => !options.M[name])
         .forEach((name) => {
           if (fileSet.has(name)) return;
           fileSet.add(name);
@@ -44,35 +40,23 @@ async function main() {
     }
     addFilesUnlessAliased(request.fileToGenerate);
     filesToGenerate = request.protoFile.filter((file) => fileSet.has(file.name));
-  // } else {
-  //   filesToGenerate = protoFilesToGenerate(request).filter((file) => !options.M[file.name]);
-  // }
 
   const files = await Promise.all(
     filesToGenerate.map(async (file) => {
-      const [path, code] = generateFile({ ...ctx, currentFile: createFileContext(file) }, file);
+      if (file.syntax !== "proto3") {
+        throw Error('Only proto3 files are supported');
+      }
+      const [path, code] = generateFile({ ...ctx }, file);
       const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion, file.name), path });
       return { name: path, content };
     }),
   );
-
-  // if (options.outputTypeRegistry) {
-  //   const utils = makeUtils(options);
-  //   const ctx: BaseContext = { options, typeMap, utils };
 
     const path = "typeRegistry.ts";
     const code = generateTypeRegistry(ctx);
 
     const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
     files.push({ name: path, content });
-  // }
-
-  // if (options.outputIndex) {
-  //   for (const [path, code] of generateIndexFiles(filesToGenerate, options)) {
-  //     const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
-  //     files.push({ name: path, content });
-  //   }
-  // }
 
   const response = CodeGeneratorResponse.fromPartial({
     file: files,

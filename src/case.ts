@@ -1,5 +1,3 @@
-import { camelCase as camelCaseAnything } from "case-anything";
-
 import { Options } from "./options";
 
 /** Converts `key` to TS/JS camel-case idiom, unless overridden not to. */
@@ -40,13 +38,4 @@ export function capitalize(s: string): string {
 
 export function uncapitalize(s: string): string {
   return s.substring(0, 1).toLowerCase() + s.substring(1);
-}
-
-/* This function uses the exact same semantics found inside the grpc
- * nodejs library. Camel case splitting must be done by word i.e
- * GetAPIValue must become getApiValue (notice the API becomes Api).
- * This needs to be followed otherwise it will not succeed in the grpc nodejs module.
- */
-export function camelCaseGrpc(s: string): string {
-  return camelCaseAnything(s);
 }

@@ -82,14 +82,12 @@ function generateRegularRpcMethod(ctx: Context, methodDesc: MethodDescriptorProt
     let beforeRequest = code``;
     let requestParamName = "request";
 
-    let requestInvocation = code`${rpcMethod}<${rawInputType},${responseType(ctx, methodDesc, {
-      keepValueType: true,
-    })}>(
+    let requestInvocation = code`${rpcMethod}<${rawInputType},${responseType(ctx, methodDesc)}>(
           ${service},
           "${methodDesc.name}",
           ${requestParamName},
           ${rawInputType},
-          ${responseType(ctx, methodDesc, { keepValueType: true })})`;
+          ${responseType(ctx, methodDesc)})`;
 
     requestInvocation = code`return ${requestInvocation}`;
     

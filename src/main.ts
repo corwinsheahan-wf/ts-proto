@@ -6,7 +6,7 @@ import {
   FieldDescriptorProto_Type,
   FileDescriptorProto,
 } from "ts-proto-descriptors";
-import { camelToSnake, capitalize, maybeSnakeToCamel } from "./case";
+import { capitalize } from "./case";
 import { Context } from "./context";
 import { generateEnum } from "./enums";
 import { generateGenericServiceDefinition } from "./generate-generic-service-definition";
@@ -19,10 +19,8 @@ import {
 
 import {
   DateOption,
-  EnvOption,
   JsonTimestampOption,
   LongOption,
-  OneofOption,
   Options,
   ServiceOption,
 } from "./options";
@@ -45,7 +43,6 @@ import {
   isLongValueType,
   isMapType,
   isMessage,
-  isObjectId,
   isOptionalProperty,
   isPrimitive,
   isRepeated,
@@ -126,62 +123,21 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
     },
   );
 
-  // if (options.outputJsonMethods ||
-  //   options.outputTypeAnnotations ||
-  //   options.outputTypeRegistry
-  // ) {
-    // then add the encoder/decoder/base instance
     visit(
       fileDesc,
       sourceInfo,
       (fullName, message, _sInfo, fullProtoTypeName) => {
         const fullTypeName = maybePrefixPackage(fileDesc, fullProtoTypeName);
 
-        // if (options.outputPartialMethods) {
-          chunks.push(generateBaseInstanceFactory(ctx, fullName, message, fullTypeName));
-        // }
+        chunks.push(generateBaseInstanceFactory(ctx, fullName, message, fullTypeName));
 
         const staticMembers: Code[] = [];
 
-        // if (options.outputTypeAnnotations || options.outputTypeRegistry) {
           staticMembers.push(code`$type: '${fullTypeName}' as const`);
-        // }
 
-        // if (options.outputExtensions) {
-        //   for (const extension of message.extension) {
-        //     const { name, type, extensionInfo } = generateExtension(ctx, message, extension);
-        //
-        //     staticMembers.push(code`${name}: <${ctx.utils.Extension}<${type}>> ${extensionInfo}`);
-        //   }
-        // }
-
-        // if (options.outputJsonMethods) {
-        //   if (options.outputJsonMethods === true || options.outputJsonMethods === "from-only") {
             staticMembers.push(generateFromJson(ctx, fullName, fullTypeName, message));
-          // }
-          // if (options.outputJsonMethods === true || options.outputJsonMethods === "to-only") {
             staticMembers.push(generateToJson(ctx, fullName, fullTypeName, message));
-          // }
-        // }
-        // if (options.outputPartialMethods) {
           staticMembers.push(generateFromPartial(ctx, fullName, message));
-        // }
-
-        // const structFieldNames = {
-        //   nullValue: maybeSnakeToCamel("null_value", ctx.options),
-        //   numberValue: maybeSnakeToCamel("number_value", ctx.options),
-        //   stringValue: maybeSnakeToCamel("string_value", ctx.options),
-        //   boolValue: maybeSnakeToCamel("bool_value", ctx.options),
-        //   structValue: maybeSnakeToCamel("struct_value", ctx.options),
-        //   listValue: maybeSnakeToCamel("list_value", ctx.options),
-        // };
-        // if (options.nestJs) {
-        //   staticMembers.push(...generateWrapDeep(ctx, fullTypeName, structFieldNames));
-        //   staticMembers.push(...generateUnwrapDeep(ctx, fullTypeName, structFieldNames));
-        // } else {
-        //   staticMembers.push(...generateWrapShallow(ctx, fullTypeName, structFieldNames));
-        //   staticMembers.push(...generateUnwrapShallow(ctx, fullTypeName, structFieldNames));
-        // }
 
         if (staticMembers.length > 0) {
           chunks.push(code`
@@ -191,37 +147,16 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
           `);
         }
 
-        // if (options.outputTypeRegistry) {
           const messageTypeRegistry = impFile(options, "messageTypeRegistry@./typeRegistry");
           chunks.push(code`
             ${messageTypeRegistry}.set(${fullName}.$type, ${fullName});
           `);
-        // }
       },
       options,
     );
-  // }
-
-  // if (options.outputExtensions) {
-  //   for (const extension of fileDesc.extension) {
-  //     const { name, type, extensionInfo } = generateExtension(ctx, undefined, extension);
-  //
-  //     chunks.push(code`export const ${name}: ${ctx.utils.Extension}<${type}> = ${extensionInfo};`);
-  //   }
-  // }
-
-  let hasServerStreamingMethods = false;
   let hasStreamingMethods = false;
 
   visitServices(fileDesc, sourceInfo, (serviceDesc, sInfo) => {
-    // if (options.nestJs) {
-    //   let serviceConstName = `${camelToSnake(serviceDesc.name)}_NAME`;
-    //   if (!serviceDesc.name.toLowerCase().endsWith("service")) {
-    //     serviceConstName = `${camelToSnake(serviceDesc.name)}_SERVICE_NAME`;
-    //   }
-    //   chunks.push(code`export const ${serviceConstName} = "${serviceDesc.name}";`);
-    // }
-
     // FIXME: Weneed this outputServices option for this, probably should examine why that is
     const uniqueServices = [...new Set(options.outputServices)].sort();
     uniqueServices.forEach((outputService) => {
@@ -231,10 +166,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
         // This service could be Twirp or grpc-web or JSON (maybe). So far all of their
         // interfaces are fairly similar so we share the same service interface.
         chunks.push(generateService(ctx, fileDesc, sInfo, serviceDesc));
-
-        // if (options.outputClientImpl === true || options.outputClientImpl === "generic") {
-          chunks.push(generateServiceClientImpl(ctx, fileDesc, serviceDesc));
-        // } 
+        chunks.push(generateServiceClientImpl(ctx, fileDesc, serviceDesc));
       }
     });
 
@@ -245,14 +177,8 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
     });
   });
 
-  if (
-    // options.outputServices.includes(ServiceOption.DEFAULT) &&
-    // options.outputClientImpl &&
-    fileDesc.service.length > 0
-  ) {
-    // if (options.outputClientImpl === true || options.outputClientImpl === "generic") {
-      chunks.push(generateRpcType(ctx, hasStreamingMethods));
-    // } 
+  if (fileDesc.service.length > 0) {
+    chunks.push(generateRpcType(ctx, hasStreamingMethods));
   }
 
   // https://www.typescriptlang.org/docs/handbook/2/modules.html:
@@ -291,45 +217,19 @@ export type Utils = ReturnType<typeof makeDeepPartial> &
   ReturnType<typeof makeObjectIdMethods> &
   ReturnType<typeof makeTimestampMethods> &
   ReturnType<typeof makeByteUtils> &
-  // ReturnType<typeof makeLongUtils> &
   ReturnType<typeof makeComparisonUtils>;
-  // ReturnType<typeof makeNiceGrpcServerStreamingMethodResult> &
-  // ReturnType<typeof makeGrpcWebErrorClass> &
-  // ReturnType<typeof makeExtensionClass> &
-  // ReturnType<typeof makeAssertionUtils>;
-
+  
 /** These are runtime utility methods used by the generated code. */
 export function makeUtils(options: Options): Utils {
-  const bytes = makeByteUtils(options);
+  const bytes = makeByteUtils();
   const longs = makeLongUtils(options, bytes);
   return {
     ...bytes,
     ...makeDeepPartial(options, longs),
     ...makeObjectIdMethods(),
     ...makeTimestampMethods(options, longs, bytes),
-    // ...longs,
     ...makeComparisonUtils(),
-    // ...makeNiceGrpcServerStreamingMethodResult(options),
-    // ...makeGrpcWebErrorClass(bytes),
-    // ...makeExtensionClass(options),
-    // ...makeAssertionUtils(bytes),
   };
-}
-
-function makeProtobufTimestampWrapper() {
-  const wrappers = imp("wrappers@protobufjs");
-  return code`
-      ${wrappers}['.google.protobuf.Timestamp'] = {
-        fromObject(value: Date) {
-          return {
-            seconds: value.getTime() / 1000,
-            nanos: (value.getTime() % 1000) * 1e6,
-          };
-        },
-        toObject(message: { seconds: number; nanos: number }) {
-          return new Date(message.seconds * 1000 + message.nanos / 1e6);
-        },
-      } as any;`;
 }
 
 function makeLongUtils(options: Options, bytes: ReturnType<typeof makeByteUtils>) {
@@ -397,30 +297,11 @@ function makeLongUtils(options: Options, bytes: ReturnType<typeof makeByteUtils>
   return { numberToLong, longToNumber, longToString, longToBigint, Long };
 }
 
-function makeByteUtils(options: Options) {
-  const globalThisPolyfill = conditionalOutput(
-    "gt",
-    code`
-      declare const self: any | undefined;
-      declare const window: any | undefined;
-      declare const global: any | undefined;
-      const gt: any = (() => {
-        if (typeof globalThis !== "undefined") return globalThis;
-        if (typeof self !== "undefined") return self;
-        if (typeof window !== "undefined") return window;
-        if (typeof global !== "undefined") return global;
-        throw "Unable to locate global object";
-      })();
-    `,
-  );
-  const globalThis = /*options.globalThisPolyfill ? globalThisPolyfill :*/ conditionalOutput("globalThis", code``);
+function makeByteUtils() {
+  const globalThis = conditionalOutput("globalThis", code``);
 
   function getBytesFromBase64Snippet() {
-    const bytesFromBase64NodeSnippet = code`
-      return Uint8Array.from(${globalThis}.Buffer.from(b64, 'base64'));
-    `;
-
-    const bytesFromBase64BrowserSnippet = code`
+    return code`
       const bin = ${globalThis}.atob(b64);
       const arr = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; ++i) {
@@ -428,21 +309,6 @@ function makeByteUtils(options: Options) {
       }
       return arr;
     `;
-
-    // switch (options.env) {
-    //   case EnvOption.NODE:
-    //     return bytesFromBase64NodeSnippet;
-    //   case EnvOption.BROWSER:
-        return bytesFromBase64BrowserSnippet;
-    //   default:
-    //     return code`
-    //     if ((${globalThis} as any).Buffer) {
-    //       ${bytesFromBase64NodeSnippet}
-    //       } else {
-    //         ${bytesFromBase64BrowserSnippet}
-    //       }
-    //     `;
-    // }
   }
 
   const bytesFromBase64 = conditionalOutput(
@@ -455,32 +321,13 @@ function makeByteUtils(options: Options) {
   );
 
   function getBase64FromBytesSnippet() {
-    const base64FromBytesNodeSnippet = code`
-      return ${globalThis}.Buffer.from(arr).toString('base64');
-    `;
-
-    const base64FromBytesBrowserSnippet = code`
+    return code`
       const bin: string[] = [];
       arr.forEach((byte) => {
         bin.push(${globalThis}.String.fromCharCode(byte));
       });
       return ${globalThis}.btoa(bin.join(''));
     `;
-
-    // switch (options.env) {
-    //   case EnvOption.NODE:
-    //     return base64FromBytesNodeSnippet;
-    //   case EnvOption.BROWSER:
-        return base64FromBytesBrowserSnippet;
-      // default:
-      //   return code`
-      //     if ((${globalThis} as any).Buffer) {
-      //       ${base64FromBytesNodeSnippet}
-      //     } else {
-      //       ${base64FromBytesBrowserSnippet}
-      //     }
-      //   `;
-    // }
   }
 
   const base64FromBytes = conditionalOutput(
@@ -737,32 +584,24 @@ function generateInterfaceDeclaration(
   sourceInfo: SourceInfo,
   fullTypeName: string,
 ): Code {
-  const { options, currentFile } = ctx;
+  const { options} = ctx;
   const chunks: Code[] = [];
 
   addComment(sourceInfo, chunks, messageDesc.options?.deprecated);
   // interface name should be defined to avoid import collisions
   chunks.push(code`export interface ${def(fullName)} {`);
 
-  // if (addTypeToMessages(options)) {
-    chunks.push(code`$type: '${fullTypeName}',`);
-  // }
-
-  // When oneof=unions, we generate a single property with an ADT per `oneof` clause.
-  const processedOneofs = new Set<number>();
+  chunks.push(code`$type: '${fullTypeName}',`);
 
   messageDesc.field.forEach((fieldDesc, index) => {
     const info = sourceInfo.lookup(Fields.message.field, index);
     addComment(info, chunks, fieldDesc.options?.deprecated);
     const fieldKey = safeAccessor(getFieldName(fieldDesc, options));
-    const isOptional = isOptionalProperty(fieldDesc, messageDesc.options, options, currentFile.isProto3Syntax);
+    const isOptional = isOptionalProperty(fieldDesc, messageDesc.options, options);
     const type = toTypeName(ctx, messageDesc, fieldDesc, isOptional);
     chunks.push(code`${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
   });
 
-  // if (ctx.options.unknownFields) {
-  //   chunks.push(code`_unknownFields?: {[key: number]: Uint8Array[]} | undefined,`);
-  // }
 
   chunks.push(code`}`);
   return joinCode(chunks, { on: "\n" });
@@ -775,33 +614,10 @@ function generateBaseInstanceFactory(
   messageDesc: DescriptorProto,
   fullTypeName: string,
 ): Code {
-  const { options, currentFile } = ctx;
+  const { options} = ctx;
   const fields: Code[] = [];
 
-  // When oneof=unions, we generate a single property with an ADT per `oneof` clause.
-  const processedOneofs = new Set<number>();
-
   for (const field of messageDesc.field) {
-    // if (isWithinOneOfThatShouldBeUnion(ctx.options, field)) {
-    //   const { oneofIndex } = field;
-    //   if (!processedOneofs.has(oneofIndex)) {
-    //     processedOneofs.add(oneofIndex);
-    //
-    //     const name = options.useJsonName
-    //       ? getFieldName(field, options)
-    //       : maybeSnakeToCamel(messageDesc.oneofDecl[oneofIndex].name, ctx.options);
-    //     fields.push(code`${safeAccessor(name)}: ${nullOrUndefined(options)}`);
-    //   }
-    //   continue;
-    // }
-
-    // if (
-    //   !options.initializeFieldsAsUndefined &&
-    //   isOptionalProperty(field, messageDesc.options, options, currentFile.isProto3Syntax)
-    // ) {
-    //   continue;
-    // }
-
     const fieldKey = safeAccessor(getFieldName(field, options));
     const val = isWithinOneOf(field)
       ? nullOrUndefined()
@@ -816,13 +632,7 @@ function generateBaseInstanceFactory(
     fields.push(code`${fieldKey}: ${val}`);
   }
 
-  // if (addTypeToMessages(options)) {
     fields.unshift(code`$type: '${fullTypeName}'`);
-  // }
-
-  // if (ctx.options.unknownFields && ctx.options.initializeFieldsAsUndefined) {
-  //   fields.push(code`_unknownFields: {}`);
-  // }
 
   return code`
     function createBase${fullName}(): ${fullName} {
@@ -831,249 +641,6 @@ function generateBaseInstanceFactory(
   `;
 }
 
-// function generateSetExtension(ctx: Context, fullName: string) {
-//   return code`
-//     setExtension <T> (message: ${fullName}, extension: ${ctx.utils.Extension}<T>, value: T): void {
-//       const encoded = extension.encode!(value);
-//
-//       if (message._unknownFields !== undefined) {
-//         delete message._unknownFields[extension.tag];
-//
-//         if (extension.singularTag !== undefined) {
-//           delete message._unknownFields[extension.singularTag];
-//         }
-//       }
-//
-//       if (encoded.length !== 0) {
-//         if (message._unknownFields === undefined) {
-//           message._unknownFields = {};
-//         }
-//
-//         message._unknownFields[extension.tag] = encoded;
-//       }
-//     }
-//   `;
-// }
-
-// function generateGetExtension(ctx: Context, fullName: string) {
-//   return code`
-//     getExtension <T> (message: ${fullName}, extension: ${ctx.utils.Extension}<T>): T | undefined {
-//       let results: T | undefined = undefined;
-//
-//       if (message._unknownFields === undefined) {
-//         return undefined;
-//       }
-//
-//       let list = message._unknownFields[extension.tag];
-//
-//       if (list !== undefined) {
-//         results = extension.decode!(extension.tag, list);
-//       }
-//
-//       if (extension.singularTag === undefined) {
-//         return results;
-//       }
-//
-//       list = message._unknownFields[extension.singularTag];
-//
-//       if (list !== undefined) {
-//         const results2 = extension.decode!(extension.singularTag, list);
-//
-//         if (results !== undefined && (results as any).length !== 0) {
-//           results = (results as any).concat(results2);
-//         } else {
-//           results = results2;
-//         }
-//       }
-//
-//       return results;
-//     }
-//   `;
-// }
-
-// function generateExtension(ctx: Context, message: DescriptorProto | undefined, extension: FieldDescriptorProto) {
-//   const type = toTypeName(ctx, message, extension);
-//   const packedTag =
-//     isRepeated(extension) && packedType(extension.type) !== undefined ? ((extension.number << 3) | 2) >>> 0 : undefined;
-//   const singularTag = ((extension.number << 3) | basicWireType(extension.type)) >>> 0;
-//   const tag = packedTag ?? singularTag;
-//
-//   const chunks: Code[] = [];
-//
-//   chunks.push(code`{`);
-//
-//   chunks.push(code`number: ${extension.number},`);
-//   chunks.push(code`tag: ${tag},`);
-//
-//   if (packedTag !== undefined) chunks.push(code`singularTag: ${singularTag},`);
-//   chunks.push(code`repeated: ${extension.label == FieldDescriptorProto_Label.LABEL_REPEATED},`);
-//   chunks.push(code`packed: ${extension.options?.packed ? true : false},`);
-//
-//   const Reader = impFile(ctx.options, "Reader@protobufjs/minimal");
-//   const Writer = impFile(ctx.options, "Writer@protobufjs/minimal");
-//
-//   if (
-//     ctx.options.outputEncodeMethods === true ||
-//     ctx.options.outputEncodeMethods === "encode-only" ||
-//     ctx.options.outputEncodeMethods === "encode-no-creation"
-//   ) {
-//     chunks.push(code`
-//       encode: (value: ${type}): Uint8Array[] => {
-//         const encoded: Uint8Array[] = [];
-//     `);
-//
-//     function getEncodeSnippet(ctx: Context, field: FieldDescriptorProto): (place: string) => Code {
-//       const { options, utils } = ctx;
-//
-//       if (isEnum(field) && options.stringEnums) {
-//         const toNumber = getEnumMethod(ctx, field.typeName, "ToNumber");
-//         return (place) => code`writer.${toReaderCall(field)}(${toNumber}(${place}))`;
-//       } else if (isLong(field) && options.forceLong === LongOption.BIGINT) {
-//         return (place) => code`writer.${toReaderCall(field)}(${place}.toString())`;
-//       } else if (isScalar(field) || isEnum(field)) {
-//         return (place) => code`writer.${toReaderCall(field)}(${place})`;
-//       } else if (isObjectId(field) && options.useMongoObjectId) {
-//         const type = basicTypeName(ctx, field, { keepValueType: true });
-//
-//         return (place) => code`${type}.encode(${utils.toProtoObjectId}(${place}), writer.fork()).ldelim()`;
-//       } else if (
-//         isTimestamp(field) &&
-//         (options.useDate === DateOption.DATE ||
-//           options.useDate === DateOption.STRING ||
-//           options.useDate === DateOption.STRING_NANO)
-//       ) {
-//         const type = basicTypeName(ctx, field, { keepValueType: true });
-//         return (place) => code`${type}.encode(${utils.toTimestamp}(${place}), writer.fork()).ldelim()`;
-//       } else if (isValueType(ctx, field)) {
-//         const maybeTypeField = addTypeToMessages(options) ? `$type: '${field.typeName.slice(1)}',` : "";
-//
-//         const type = basicTypeName(ctx, field, { keepValueType: true });
-//         const wrappedValue = (place: string): Code => {
-//           if (isAnyValueType(field) || isListValueType(field) || isStructType(field) || isFieldMaskType(field)) {
-//             return code`${type}.wrap(${place})`;
-//           }
-//           return code`{${maybeTypeField} value: ${place}!}`;
-//         };
-//
-//         return (place) => code`${type}.encode(${wrappedValue(place)}, writer.fork()).ldelim()`;
-//       } else if (isMessage(field)) {
-//         const type = basicTypeName(ctx, field);
-//
-//         if (field.type == FieldDescriptorProto_Type.TYPE_GROUP) {
-//           const endTag = ((field.number << 3) | 4) >>> 0;
-//           return (place) => code`${type}.encode(${place}, writer).uint32(${endTag})`;
-//         }
-//
-//         return (place) => code`${type}.encode(${place}, writer.fork()).ldelim()`;
-//       } else {
-//         throw new Error(`Unhandled field ${field}`);
-//       }
-//     }
-//
-//     const writeSnippet = getEncodeSnippet(ctx, extension);
-//
-//     if (isRepeated(extension)) {
-//       if (packedTag === undefined) {
-//         chunks.push(code`
-//           for (const v of value) {
-//             const writer = ${Writer}.create();
-//             ${writeSnippet("v")};
-//             encoded.push(writer.finish());
-//           }
-//         `);
-//       } else {
-//         const rhs = (x: string) =>
-//           isLong(extension) && ctx.options.forceLong === LongOption.BIGINT ? `${x}.toString()` : x;
-//
-//         chunks.push(code`
-//           const writer = ${Writer}.create();
-//           writer.fork();
-//           for (const v of value) {
-//             ${writeSnippet(rhs("v"))};
-//           }
-//           writer.ldelim();
-//           encoded.push(writer.finish());
-//         `);
-//       }
-//     } else if (isScalar(extension) || isEnum(extension)) {
-//       chunks.push(code`
-//         if (${notDefaultCheck(ctx, extension, message?.options, "value")}) {
-//           const writer = ${Writer}.create();
-//           ${writeSnippet("value")};
-//           encoded.push(writer.finish());
-//         }
-//       `);
-//     } else {
-//       chunks.push(code`
-//         const writer = ${Writer}.create();
-//         ${writeSnippet("value")};
-//         encoded.push(writer.finish());
-//       `);
-//     }
-//
-//     chunks.push(code`
-//         return encoded;
-//       },
-//     `);
-//   }
-//
-//   if (ctx.options.outputEncodeMethods === true || ctx.options.outputEncodeMethods === "decode-only") {
-//     chunks.push(code`decode: (tag: number, input: Uint8Array[]): ${type} => {`);
-//
-//     // get a generic 'reader.doSomething' bit that is specific to the basic type
-//     const readSnippet = getDecodeReadSnippet(ctx, extension);
-//
-//     if (isRepeated(extension)) {
-//       chunks.push(code`const values: ${type} = [];`);
-//
-//       // start loop over all buffers
-//       chunks.push(code`
-//         for (const buffer of input) {
-//           const reader = ${Reader}.create(buffer);
-//       `);
-//
-//       if (packedType(extension.type) === undefined) {
-//         chunks.push(code`
-//           values.push(${readSnippet});
-//         `);
-//       } else {
-//         chunks.push(code`
-//           if (tag == ${packedTag}) {
-//             const end2 = reader.uint32() + reader.pos;
-//             while (reader.pos < end2) {
-//               values.push(${readSnippet});
-//             }
-//           } else {
-//             values.push(${readSnippet});
-//           }
-//         `);
-//       }
-//
-//       chunks.push(code`
-//           }
-//
-//           return values;
-//         },
-//       `);
-//     } else {
-//       // // pick the last entry, since it overrides all previous entries if not repeated
-//       // chunks.push(code`
-//       //     const reader = ${Reader}.create(input[input.length -1] ?? ${ctx.utils.fail}());
-//       //     return ${readSnippet};
-//       //   },
-//       // `);
-//     }
-//   }
-//
-//   chunks.push(code`}`);
-//
-//   return {
-//     name: maybeSnakeToCamel(extension.name, ctx.options),
-//     type,
-//     extensionInfo: joinCode(chunks, { on: "\n" }),
-//   };
-// }
-
 /**
  * Creates a function to decode a message from JSON.
  *
@@ -1081,7 +648,7 @@ function generateBaseInstanceFactory(
  * a few special cases for https://developers.google.com/protocol-buffers/docs/proto3#json.
  * */
 function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, messageDesc: DescriptorProto): Code {
-  const { options, utils, currentFile } = ctx;
+  const { options, utils } = ctx;
   const chunks: Code[] = [];
 
   // create the basic function declaration
@@ -1090,14 +657,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
       return {
   `);
 
-  // if (addTypeToMessages(options)) {
-    chunks.push(code`$type: ${fullName}.$type,`);
-  // }
-
-  // FIXME: Shuould we error here or somehwere up the line if `oneOfFieldscases` is not empty?
-  const oneofFieldsCases = messageDesc.oneofDecl.map((oneof, oneofIndex) =>
-    messageDesc.field.filter(isWithinOneOf).filter((field) => field.oneofIndex === oneofIndex),
-  );
+  chunks.push(code`$type: ${fullName}.$type,`);
 
   const canonicalFromJson: { [key: string]: { [field: string]: (from: string) => Code } } = {
     ["google.protobuf.FieldMask"]: {
@@ -1125,11 +685,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
       } else if (isPrimitive(field)) {
         // Convert primitives using the String(value)/Number(value)/bytesFromBase64(value)
         if (isBytes(field)) {
-          // if (options.env === EnvOption.NODE) {
-          //   return code`Buffer.from(${utils.bytesFromBase64}(${from}))`;
-          // } else {
-            return code`${utils.bytesFromBase64}(${from})`;
-          // }
+          return code`${utils.bytesFromBase64}(${from})`;
         } else if (isLong(field) && isJsTypeFieldOption(options, field)) {
           const fieldType = getFieldOptionsJsType(field, ctx.options) ?? field.type;
           const cstr = capitalize(
@@ -1179,11 +735,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
           if (isPrimitive(valueField)) {
             // TODO Can we not copy/paste this from ^?
             if (isBytes(valueField)) {
-              // if (options.env === EnvOption.NODE) {
-              //   return code`Buffer.from(${utils.bytesFromBase64}(${from} as string))`;
-              // } else {
-                return code`${utils.bytesFromBase64}(${from} as string)`;
-              // }
+              return code`${utils.bytesFromBase64}(${from} as string)`;
             } else if (isLong(valueField) && options.forceLong === LongOption.LONG) {
               return code`Long.fromValue(${from} as Long | string)`;
             } else if (isLong(valueField) && options.forceLong === LongOption.BIGINT) {
@@ -1220,11 +772,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         throw new Error(`Unhandled field ${field}`);
       }
     };
-
-    const noDefaultValue = false;
-      // !options.initializeFieldsAsUndefined &&
-      // isOptionalProperty(field, messageDesc.options, options, currentFile.isProto3Syntax);
-
+      
     // and then use the snippet to handle repeated fields if necessary
     if (canonicalFromJson[fullTypeName]?.[fieldName]) {
       chunks.push(code`${fieldName}: ${canonicalFromJson[fullTypeName][fieldName]("object")},`);
@@ -1234,7 +782,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         const i = convertFromObjectKey(ctx, messageDesc, field, "key");
 
         if (shouldGenerateJSMapType(ctx, messageDesc, field)) {
-          const fallback = noDefaultValue ? nullOrUndefined() : "new Map()";
+          const fallback = "new Map()";
 
           chunks.push(code`
             ${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
@@ -1245,7 +793,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
               : ${fallback},
           `);
         } else {
-          const fallback = noDefaultValue ? nullOrUndefined() : "{}";
+          const fallback = "{}";
 
           chunks.push(code`
             ${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
@@ -1257,7 +805,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
           `);
         }
       } else {
-        const fallback = noDefaultValue ? nullOrUndefined() : "[]";
+        const fallback = "[]";
 
         const readValueSnippet = readSnippet("e");
         if (readValueSnippet.toString() === code`e`.toString()) {
@@ -1272,24 +820,6 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         }
       }
     } 
-    // else if (isWithinOneOfThatShouldBeUnion(options, field)) {
-    //   const cases = oneofFieldsCases[field.oneofIndex];
-    //   const firstCase = cases[0];
-    //   const lastCase = cases[cases.length - 1];
-    //
-    //   if (field === firstCase) {
-    //     const fieldName = maybeSnakeToCamel(messageDesc.oneofDecl[field.oneofIndex].name, options);
-    //     chunks.push(code`${fieldName}: `);
-    //   }
-    //
-    //   const ternaryIf = code`${ctx.utils.isSet}(${jsonProperty})`;
-    //   const ternaryThen = code`{ $case: '${fieldName}', ${fieldKey}: ${readSnippet(`${jsonProperty}`)}`;
-    //   chunks.push(code`${ternaryIf} ? ${ternaryThen}} : `);
-    //
-    //   if (field === lastCase) {
-    //     chunks.push(code`${nullOrUndefined(options)},`);
-    //   }
-    // } else 
       else if (isAnyValueType(field)) {
       chunks.push(code`${fieldKey}: ${ctx.utils.isSet}(${jsonPropertyOptional})
         ? ${readSnippet(`${jsonProperty}`)}
@@ -1308,7 +838,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
           : ${nullOrUndefined()},
       `);
     } else {
-      const fallback = isWithinOneOf(field) || noDefaultValue ? nullOrUndefined() : defaultValue(ctx, field);
+      const fallback = isWithinOneOf(field) ? nullOrUndefined() : defaultValue(ctx, field);
       chunks.push(code`
         ${fieldKey}: ${ctx.utils.isSet}(${jsonProperty})
           ? ${readSnippet(`${jsonProperty}`)}
@@ -1482,17 +1012,6 @@ function generateToJson(
         }
       `);
     } 
-    // else if (isWithinOneOfThatShouldBeUnion(options, field)) {
-    //   // oneofs in a union are only output as `oneof name = ...`
-    //   const oneofNameWithMessage = options.useJsonName
-    //     ? messageProperty
-    //     : getPropertyAccessor("message", maybeSnakeToCamel(messageDesc.oneofDecl[field.oneofIndex].name, options));
-    //   chunks.push(code`
-    //     if (${oneofNameWithMessage}?.$case === '${fieldName}') {
-    //       ${jsonProperty} = ${readSnippet(`${oneofNameWithMessage}.${fieldName}`)};
-    //     }
-    //   `);
-    // } 
     else {
       let emitDefaultValuesForJson = ctx.options.emitDefaultValues.includes("json-methods");
       const check =
@@ -1517,37 +1036,20 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
   const chunks: Code[] = [];
 
   // create the create function definition
-  // if (ctx.options.useExactTypes) {
     chunks.push(code`
       create<I extends ${utils.Exact}<${utils.DeepPartial}<${fullName}>, I>>(base?: I): ${fullName} {
         return ${fullName}.fromPartial(base ?? ({} as any));
       },
     `);
-  // } else {
-  //   chunks.push(code`
-  //     create(base?: ${utils.DeepPartial}<${fullName}>): ${fullName} {
-  //       return ${fullName}.fromPartial(base ?? {});
-  //     },
-  //   `);
-  // }
-
+    
   // create the fromPartial function declaration
   const paramName = messageDesc.field.length > 0 ? "object" : "_";
 
-  // if (ctx.options.useExactTypes) {
     chunks.push(code`
       fromPartial<I extends ${utils.Exact}<${utils.DeepPartial}<${fullName}>, I>>(${paramName}: I): ${fullName} {
     `);
-  // } else {
-  //   chunks.push(code`
-  //     fromPartial(${paramName}: ${utils.DeepPartial}<${fullName}>): ${fullName} {
-  //   `);
-  // }
-
+  
   let createBase = code`createBase${fullName}()`;
-  // if (options.usePrototypeForDefaults) {
-  //   createBase = code`Object.create(${createBase}) as ${fullName}`;
-  // }
 
   chunks.push(code`const message = ${createBase};`);
 
@@ -1615,22 +1117,15 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
       }
     };
 
-    const noDefaultValue = false;
-    //   !options.initializeFieldsAsUndefined && isOptionalProperty(field, messageDesc.options, options, true);
-
     // and then use the snippet to handle repeated fields if necessary
     if (isRepeated(field)) {
       if (isMapType(ctx, messageDesc, field)) {
         const fieldType = toTypeName(ctx, messageDesc, field);
         const i = convertFromObjectKey(ctx, messageDesc, field, "key");
 
-        const noValueSnippet = noDefaultValue
-          ? `(${objectProperty} === undefined || ${objectProperty} === null) ? undefined : `
-          : "";
-
         if (shouldGenerateJSMapType(ctx, messageDesc, field)) {
           chunks.push(code`
-            ${messageProperty} = ${noValueSnippet} (() => {
+            ${messageProperty} = (() => {
               const m = new Map();
               (${objectProperty} as ${fieldType} ?? new Map()).forEach((value, key) => {
                 if (value !== undefined) {
@@ -1642,7 +1137,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
           `);
         } else {
           chunks.push(code`
-            ${messageProperty} = ${noValueSnippet} Object.entries(${objectProperty} ?? {}).reduce<${fieldType}>((acc, [key, value]) => {
+            ${messageProperty} = Object.entries(${objectProperty} ?? {}).reduce<${fieldType}>((acc, [key, value]) => {
               if (value !== undefined) {
                 acc[${i}] = ${readSnippet("value")};
               }
@@ -1651,32 +1146,16 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
           `);
         }
       } else {
-        const fallback = noDefaultValue ? "undefined" : "[]";
-
         chunks.push(code`
-          ${messageProperty} = ${objectProperty}?.map((e) => ${readSnippet("e")}) || ${fallback};
+          ${messageProperty} = ${objectProperty}?.map((e) => ${readSnippet("e")}) || [];
         `);
       }
-    // } else if (isWithinOneOfThatShouldBeUnion(options, field)) {
-    //   const oneofName = maybeSnakeToCamel(messageDesc.oneofDecl[field.oneofIndex].name, options);
-    //   const oneofNameWithMessage = getPropertyAccessor("message", oneofName);
-    //   const oneofNameWithObject = getPropertyAccessor("object", oneofName);
-    //   const v = readSnippet(`${oneofNameWithObject}.${fieldName}`);
-    //   chunks.push(code`
-    //     if (
-    //       ${oneofNameWithObject}?.$case === '${fieldName}'
-    //       && ${oneofNameWithObject}?.${fieldName} !== undefined
-    //       && ${oneofNameWithObject}?.${fieldName} !== null
-    //     ) {
-    //       ${oneofNameWithMessage} = { $case: '${fieldName}', ${fieldName}: ${v} };
-    //     }
-    //   `);
     } else if (readSnippet(`x`).toCodeString([]) == "x") {
       // An optimized case of the else below that works when `readSnippet` returns the plain input
-      const fallback = isWithinOneOf(field) || noDefaultValue ? "undefined" : defaultValue(ctx, field);
+      const fallback = isWithinOneOf(field) ? "undefined" : defaultValue(ctx, field);
       chunks.push(code`${messageProperty} = ${objectProperty} ?? ${fallback};`);
     } else {
-      const fallback = isWithinOneOf(field) || noDefaultValue ? "undefined" : defaultValue(ctx, field);
+      const fallback = isWithinOneOf(field) ? "undefined" : defaultValue(ctx, field);
       chunks.push(code`
         ${messageProperty} = (${objectProperty} !== undefined && ${objectProperty} !== null)
           ? ${readSnippet(`${objectProperty}`)}
@@ -1727,8 +1206,6 @@ function convertToObjectKey(
   if (keyType.toCodeString([]) === "string") {
     return code`${variableName}`;
   } else if (isLong(keyField) && shouldGenerateJSMapType(ctx, messageDesc, field)) {
-    // if (ctx.options.forceLong === LongOption.LONG) {
-    //   return code`${ctx.utils.longToNumber}(${variableName})`;
     if (ctx.options.forceLong === LongOption.BIGINT) {
       return code`${variableName}.toString()`;
     } else {
@@ -1740,11 +1217,4 @@ function convertToObjectKey(
     return code`${variableName}`;
   }
 }
-//
-// function maybeReadonly(options: Options): string {
-//   return options.useReadonlyTypes ? "readonly " : "";
-// }
-//
-// function maybeAsAny(options: Options): string {
-//   return options.useReadonlyTypes ? " as any" : "";
-// }
+

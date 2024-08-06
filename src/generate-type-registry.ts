@@ -6,15 +6,9 @@ export function generateTypeRegistry(ctx: BaseContext): Code {
 
   chunks.push(generateMessageType(ctx));
 
-  // if (addTypeToMessages(ctx.options)) {
     chunks.push(code`
     export type UnknownMessage = {$type: string};
   `);
-  // } else {
-  //   chunks.push(code`
-  //   export type UnknownMessage = unknown;
-  // `);
-  // }
 
   chunks.push(code`
     export const messageTypeRegistry = new Map<string, MessageType>();
@@ -30,20 +24,12 @@ function generateMessageType(ctx: BaseContext): Code {
 
   chunks.push(code`export interface MessageType<Message extends UnknownMessage = UnknownMessage> {`);
 
-  // if (addTypeToMessages(ctx.options)) {
     chunks.push(code`$type: Message['$type'];`);
-  // } else {
-  //   chunks.push(code`$type: string;`);
-  // }
 
-  // if (ctx.options.outputJsonMethods) {
     chunks.push(code`fromJSON(object: any): Message;`);
     chunks.push(code`toJSON(message: Message): unknown;`);
-  // }
 
-  // if (ctx.options.outputPartialMethods) {
     chunks.push(code`fromPartial(object: ${ctx.utils.DeepPartial}<Message>): Message;`);
-  // }
 
   chunks.push(code`}`);
 
