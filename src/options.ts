@@ -62,15 +62,15 @@ export type Options = {
   // constEnums: boolean; // No info about this, just stick with default
   // removeEnumPrefix: boolean;
   // enumsAsLiterals: boolean;
-  outputClientImpl: boolean | "grpc-web" | "generic";
-  outputServices: ServiceOption[];
-  addGrpcMetadata: boolean;
-  metadataType: string | undefined;
-  addNestjsRestParameter: boolean;
-  returnObservable: boolean;
+  // outputClientImpl: boolean | "grpc-web" | "generic";
+  outputServices: ServiceOption[]; // defaults to generic-definitions
+  // addGrpcMetadata: boolean;
+  // metadataType: string | undefined; // TODO: Don't think we need this
+  // addNestjsRestParameter: boolean;
+  // returnObservable: boolean;
   // lowerCaseServiceMethods: boolean;
-  nestJs: boolean;
-  env: EnvOption;
+  // nestJs: boolean;
+  // env: EnvOption;
   unrecognizedEnum: boolean;
   unrecognizedEnumName: string;
   unrecognizedEnumValue: number;
@@ -129,14 +129,14 @@ export function defaultOptions(): Options {
     // constEnums: false,
     // removeEnumPrefix: false,
     // enumsAsLiterals: false,
-    outputClientImpl: "generic",
+    // outputClientImpl: "generic",
     outputServices: [],
-    returnObservable: false,
-    addGrpcMetadata: false,
-    metadataType: undefined,
-    addNestjsRestParameter: false,
-    nestJs: false,
-    env: EnvOption.BOTH,
+    // returnObservable: false,
+    // addGrpcMetadata: false,
+    // metadataType: undefined,
+    // addNestjsRestParameter: false,
+    // nestJs: false,
+    // env: EnvOption.BOTH,
     unrecognizedEnum: true,
     unrecognizedEnumName: "UNRECOGNIZED",
     unrecognizedEnumValue: -1,
@@ -178,18 +178,18 @@ export function optionsFromParameter(parameter: string | undefined): Options {
     Object.assign(options, parsed);
   }
 
-  // onlyTypes=true implies outputJsonMethods=false,outputEncodeMethods=false,outputClientImpl=false,nestJs=false
-  if (options.onlyTypes) {
-    // options.outputJsonMethods = false;
-    options.outputClientImpl = false;
-    options.nestJs = false;
-  } else if (
-    // !options.outputJsonMethods &&
-    !options.outputClientImpl &&
-    !options.nestJs
-  ) {
-    options.onlyTypes = true;
-  }
+  // // onlyTypes=true implies outputJsonMethods=false,outputEncodeMethods=false,outputClientImpl=false,nestJs=false
+  // if (options.onlyTypes) {
+  //   // options.outputJsonMethods = false;
+  //   // options.outputClientImpl = false;
+  //   options.nestJs = false;
+  // } else if (
+  //   // !options.outputJsonMethods &&
+  //   // !options.outputClientImpl &&
+  //   !options.nestJs
+  // ) {
+  //   options.onlyTypes = true;
+  // }
 
   // Treat forceLong=true as LONG
   if ((options.forceLong as any) === true) {
@@ -197,18 +197,18 @@ export function optionsFromParameter(parameter: string | undefined): Options {
   }
 
   // Treat outputServices=false as NONE
-  if ((options.outputServices as any) === false) {
-    options.outputServices = [ServiceOption.NONE];
-  }
+  // if ((options.outputServices as any) === false) {
+  //   options.outputServices = [ServiceOption.NONE];
+  // }
   // Existing type-coercion inside parseParameter leaves a little to be desired.
-  if (typeof options.outputServices == "string") {
-    options.outputServices = [options.outputServices];
-  }
+  // if (typeof options.outputServices == "string") {
+  //   options.outputServices = [options.outputServices];
+  // }
   // Assume the user wants the default service output, unless they're using nestJs, which has
   // its own controllers output (although nestjs users can ask for other services too).
-  if (options.outputServices.length == 0 && !options.nestJs) {
-    options.outputServices = [ServiceOption.DEFAULT];
-  }
+  // if (options.outputServices.length == 0 && !options.nestJs) {
+  //   options.outputServices = [ServiceOption.DEFAULT];
+  // }
 
   if ((options.useDate as any) === true) {
     // Treat useDate=true as DATE
@@ -243,21 +243,21 @@ export function optionsFromParameter(parameter: string | undefined): Options {
     }
   }
 
-  if (options.nestJs) {
-    options.initializeFieldsAsUndefined = false;
-  }
+  // if (options.nestJs) {
+  //   options.initializeFieldsAsUndefined = false;
+  // }
 
   if (options.outputIndex) {
     options.exportCommonSymbols = false;
   }
 
-  if (options.rpcBeforeRequest || options.rpcAfterResponse || options.rpcErrorHandler) {
-    const includesGeneric = options.outputServices.includes(ServiceOption.GENERIC);
-    options.outputServices = [ServiceOption.DEFAULT];
-    if (includesGeneric) {
-      options.outputServices.push(ServiceOption.GENERIC);
-    }
-  }
+  // if (options.rpcBeforeRequest || options.rpcAfterResponse || options.rpcErrorHandler) {
+  //   const includesGeneric = options.outputServices.includes(ServiceOption.GENERIC);
+  //   options.outputServices = [ServiceOption.DEFAULT];
+  //   if (includesGeneric) {
+  //     options.outputServices.push(ServiceOption.GENERIC);
+  //   }
+  // }
 
   if (options.unrecognizedEnumValue) {
     // Make sure to cast number options to an actual number

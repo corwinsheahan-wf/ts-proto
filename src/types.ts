@@ -74,11 +74,11 @@ export function basicTypeName(
     case FieldDescriptorProto_Type.TYPE_STRING:
       return code`string`;
     case FieldDescriptorProto_Type.TYPE_BYTES:
-      if (options.env === EnvOption.NODE) {
-        return code`Buffer`;
-      } else {
+      // if (options.env === EnvOption.NODE) {
+      //   return code`Buffer`;
+      // } else {
         return code`Uint8Array`;
-      }
+      // }
     case FieldDescriptorProto_Type.TYPE_MESSAGE:
     case FieldDescriptorProto_Type.TYPE_GROUP:
     case FieldDescriptorProto_Type.TYPE_ENUM:
@@ -246,10 +246,6 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
     case FieldDescriptorProto_Type.TYPE_STRING:
       return useDefaultValue ? `"${field.defaultValue}"` : '""';
     case FieldDescriptorProto_Type.TYPE_BYTES:
-      // todo(proto2): need to look into all the possible default values for the bytes type, and handle each one
-      if (options.env === EnvOption.NODE) {
-        return "Buffer.alloc(0)";
-      }
       return "new Uint8Array(0)";
     case FieldDescriptorProto_Type.TYPE_MESSAGE:
     case FieldDescriptorProto_Type.TYPE_GROUP:
@@ -526,9 +522,7 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
     case ".google.protobuf.BoolValue":
       return code`boolean`;
     case ".google.protobuf.BytesValue":
-      return ctx.options.env === EnvOption.NODE
-        ? code`Buffer`
-        : ctx.options.useJsonWireFormat
+      return ctx.options.useJsonWireFormat
         ? code`string`
         : code`Uint8Array`;
     case ".google.protobuf.ListValue":
@@ -800,7 +794,7 @@ export function responseObservable(ctx: Context, methodDesc: MethodDescriptorPro
 
 export function responsePromiseOrObservable(ctx: Context, methodDesc: MethodDescriptorProto): Code {
   const { options } = ctx;
-  if (options.returnObservable || methodDesc.serverStreaming) {
+  if (methodDesc.serverStreaming) {
     return responseObservable(ctx, methodDesc);
   }
   return responsePromise(ctx, methodDesc);

@@ -96,7 +96,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
 
   // // Indicate this file's source protobuf package for reflective use with google.protobuf.Any
   // if (options.exportCommonSymbols) {
-  //   chunks.push(code`export const protobufPackage = '${fileDesc.package}';`);
+    chunks.push(code`export const protobufPackage = '${fileDesc.package}';`);
   // }
   //
   // Syntax, unlike most fields, is not repeated and thus does not use an index
@@ -214,14 +214,15 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   let hasStreamingMethods = false;
 
   visitServices(fileDesc, sourceInfo, (serviceDesc, sInfo) => {
-    if (options.nestJs) {
-      let serviceConstName = `${camelToSnake(serviceDesc.name)}_NAME`;
-      if (!serviceDesc.name.toLowerCase().endsWith("service")) {
-        serviceConstName = `${camelToSnake(serviceDesc.name)}_SERVICE_NAME`;
-      }
-      chunks.push(code`export const ${serviceConstName} = "${serviceDesc.name}";`);
-    }
+    // if (options.nestJs) {
+    //   let serviceConstName = `${camelToSnake(serviceDesc.name)}_NAME`;
+    //   if (!serviceDesc.name.toLowerCase().endsWith("service")) {
+    //     serviceConstName = `${camelToSnake(serviceDesc.name)}_SERVICE_NAME`;
+    //   }
+    //   chunks.push(code`export const ${serviceConstName} = "${serviceDesc.name}";`);
+    // }
 
+    // FIXME: Weneed this outputServices option for this, probably should examine why that is
     const uniqueServices = [...new Set(options.outputServices)].sort();
     uniqueServices.forEach((outputService) => {
       if (outputService === ServiceOption.GENERIC) {
@@ -231,9 +232,9 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
         // interfaces are fairly similar so we share the same service interface.
         chunks.push(generateService(ctx, fileDesc, sInfo, serviceDesc));
 
-        if (options.outputClientImpl === true || options.outputClientImpl === "generic") {
+        // if (options.outputClientImpl === true || options.outputClientImpl === "generic") {
           chunks.push(generateServiceClientImpl(ctx, fileDesc, serviceDesc));
-        } 
+        // } 
       }
     });
 
@@ -245,13 +246,13 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   });
 
   if (
-    options.outputServices.includes(ServiceOption.DEFAULT) &&
-    options.outputClientImpl &&
+    // options.outputServices.includes(ServiceOption.DEFAULT) &&
+    // options.outputClientImpl &&
     fileDesc.service.length > 0
   ) {
-    if (options.outputClientImpl === true || options.outputClientImpl === "generic") {
+    // if (options.outputClientImpl === true || options.outputClientImpl === "generic") {
       chunks.push(generateRpcType(ctx, hasStreamingMethods));
-    } 
+    // } 
   }
 
   // https://www.typescriptlang.org/docs/handbook/2/modules.html:
@@ -428,20 +429,20 @@ function makeByteUtils(options: Options) {
       return arr;
     `;
 
-    switch (options.env) {
-      case EnvOption.NODE:
-        return bytesFromBase64NodeSnippet;
-      case EnvOption.BROWSER:
+    // switch (options.env) {
+    //   case EnvOption.NODE:
+    //     return bytesFromBase64NodeSnippet;
+    //   case EnvOption.BROWSER:
         return bytesFromBase64BrowserSnippet;
-      default:
-        return code`
-        if ((${globalThis} as any).Buffer) {
-          ${bytesFromBase64NodeSnippet}
-          } else {
-            ${bytesFromBase64BrowserSnippet}
-          }
-        `;
-    }
+    //   default:
+    //     return code`
+    //     if ((${globalThis} as any).Buffer) {
+    //       ${bytesFromBase64NodeSnippet}
+    //       } else {
+    //         ${bytesFromBase64BrowserSnippet}
+    //       }
+    //     `;
+    // }
   }
 
   const bytesFromBase64 = conditionalOutput(
@@ -466,20 +467,20 @@ function makeByteUtils(options: Options) {
       return ${globalThis}.btoa(bin.join(''));
     `;
 
-    switch (options.env) {
-      case EnvOption.NODE:
-        return base64FromBytesNodeSnippet;
-      case EnvOption.BROWSER:
+    // switch (options.env) {
+    //   case EnvOption.NODE:
+    //     return base64FromBytesNodeSnippet;
+    //   case EnvOption.BROWSER:
         return base64FromBytesBrowserSnippet;
-      default:
-        return code`
-          if ((${globalThis} as any).Buffer) {
-            ${base64FromBytesNodeSnippet}
-          } else {
-            ${base64FromBytesBrowserSnippet}
-          }
-        `;
-    }
+      // default:
+      //   return code`
+      //     if ((${globalThis} as any).Buffer) {
+      //       ${base64FromBytesNodeSnippet}
+      //     } else {
+      //       ${base64FromBytesBrowserSnippet}
+      //     }
+      //   `;
+    // }
   }
 
   const base64FromBytes = conditionalOutput(
@@ -1167,11 +1168,11 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
       } else if (isPrimitive(field)) {
         // Convert primitives using the String(value)/Number(value)/bytesFromBase64(value)
         if (isBytes(field)) {
-          if (options.env === EnvOption.NODE) {
-            return code`Buffer.from(${utils.bytesFromBase64}(${from}))`;
-          } else {
+          // if (options.env === EnvOption.NODE) {
+          //   return code`Buffer.from(${utils.bytesFromBase64}(${from}))`;
+          // } else {
             return code`${utils.bytesFromBase64}(${from})`;
-          }
+          // }
         } else if (isLong(field) && isJsTypeFieldOption(options, field)) {
           const fieldType = getFieldOptionsJsType(field, ctx.options) ?? field.type;
           const cstr = capitalize(
@@ -1221,11 +1222,11 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
           if (isPrimitive(valueField)) {
             // TODO Can we not copy/paste this from ^?
             if (isBytes(valueField)) {
-              if (options.env === EnvOption.NODE) {
-                return code`Buffer.from(${utils.bytesFromBase64}(${from} as string))`;
-              } else {
+              // if (options.env === EnvOption.NODE) {
+              //   return code`Buffer.from(${utils.bytesFromBase64}(${from} as string))`;
+              // } else {
                 return code`${utils.bytesFromBase64}(${from} as string)`;
-              }
+              // }
             } else if (isLong(valueField) && options.forceLong === LongOption.LONG) {
               return code`Long.fromValue(${from} as Long | string)`;
             } else if (isLong(valueField) && options.forceLong === LongOption.BIGINT) {

@@ -99,7 +99,7 @@ function generateMethodOptions(ctx: Context, options: MethodOptions | undefined)
 
         for (const value of values) {
           valuesChunks.push(
-            code`${ctx.options.env == "node" ? "Buffer.from" : "new Uint8Array"}([${value.join(", ")}])`,
+            code`new Uint8Array([${value.join(", ")}])`,
           );
         }
 

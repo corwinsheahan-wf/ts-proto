@@ -167,15 +167,13 @@ export function generateRpcType(ctx: Context, hasStreamingMethods: boolean): Cod
   const { options } = ctx;
   const messageType = impFile(options, "MessageType@./typeRegistry");
 
-  const outputGenericClient = options.outputClientImpl === "generic";
+  // const outputGenericClient = options.outputClientImpl === "generic";
 
-  const maybeMessageTypeParams = outputGenericClient
-    ? code`reqType: ${messageType}, respType: ${messageType},`
-    : code``;
-  const maybeTypeParameters = outputGenericClient ? "<Req, Res>" : "";
-  const requestType = outputGenericClient ? "Req" : "Uint8Array";
-  const responseType = outputGenericClient ? "Res" : "Uint8Array";
-  const requestParam = outputGenericClient ? "request" : "data";
+  const maybeMessageTypeParams = code`reqType: ${messageType}, respType: ${messageType},`
+  const maybeTypeParameters = "<Req, Res>";
+  const requestType = "Req";
+  const responseType = "Res";
+  const requestParam = "request";
 
   const methods: Code[][] = [];
   methods.push([code`request${maybeTypeParameters}`, code`${requestType}`, code`Promise<${responseType}>`]);
