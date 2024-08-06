@@ -28,7 +28,7 @@ async function main() {
 
   let filesToGenerate: FileDescriptorProto[];
 
-  if (options.emitImportedFiles) {
+  // if (options.emitImportedFiles) {
     const fileSet = new Set();
     function addFilesUnlessAliased(filenames: string[]) {
       filenames
@@ -44,9 +44,9 @@ async function main() {
     }
     addFilesUnlessAliased(request.fileToGenerate);
     filesToGenerate = request.protoFile.filter((file) => fileSet.has(file.name));
-  } else {
-    filesToGenerate = protoFilesToGenerate(request).filter((file) => !options.M[file.name]);
-  }
+  // } else {
+  //   filesToGenerate = protoFilesToGenerate(request).filter((file) => !options.M[file.name]);
+  // }
 
   const files = await Promise.all(
     filesToGenerate.map(async (file) => {

@@ -495,7 +495,7 @@ function makeByteUtils(options: Options) {
 }
 
 function makeDeepPartial(options: Options, longs: ReturnType<typeof makeLongUtils>) {
-  const maybeExport = options.exportCommonSymbols ? "export" : "";
+  const maybeExport = "export";
   // Allow passing longs as numbers or strings, nad we'll convert them
   const maybeLong =
     options.forceLong === LongOption.LONG ? code` : T extends ${longs.Long} ? string | number | Long ` : "";
@@ -760,55 +760,12 @@ function generateInterfaceDeclaration(
     chunks.push(code`${maybeReadonly(options)}${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
   });
 
-  if (ctx.options.unknownFields) {
-    chunks.push(code`_unknownFields?: {[key: number]: Uint8Array[]} | undefined,`);
-  }
+  // if (ctx.options.unknownFields) {
+  //   chunks.push(code`_unknownFields?: {[key: number]: Uint8Array[]} | undefined,`);
+  // }
 
   chunks.push(code`}`);
   return joinCode(chunks, { on: "\n" });
-}
-
-function generateOneofProperty(
-  ctx: Context,
-  messageDesc: DescriptorProto,
-  oneofIndex: number,
-  sourceInfo: SourceInfo,
-): Code {
-  const { options } = ctx;
-  const fields = messageDesc.field.filter((field) => isWithinOneOf(field) && field.oneofIndex === oneofIndex);
-  const mbReadonly = maybeReadonly(options);
-  const unionType = joinCode(
-    fields.map((f) => {
-      let fieldName = maybeSnakeToCamel(f.name, options);
-      let typeName = toTypeName(ctx, messageDesc, f);
-      return code`{ ${mbReadonly}$case: '${fieldName}', ${mbReadonly}${fieldName}: ${typeName} }`;
-    }),
-    { on: " | " },
-  );
-
-  const name = maybeSnakeToCamel(messageDesc.oneofDecl[oneofIndex].name, options);
-  return code`${mbReadonly}${name}?: ${unionType} | ${nullOrUndefined(options)},`;
-
-  /*
-  // Ideally we'd put the comments for each oneof field next to the anonymous
-  // type we've created in the type union above, but ts-poet currently lacks
-  // that ability. For now just concatenate all comments into one big one.
-  let comments: Array<string> = [];
-  const info = sourceInfo.lookup(Fields.message.oneof_decl, oneofIndex);
-  maybeAddComment(options, info, (text) => comments.push(text));
-  messageDesc.field.forEach((field, index) => {
-    if (!isWithinOneOf(field) || field.oneofIndex !== oneofIndex) {
-      return;
-    }
-    const info = sourceInfo.lookup(Fields.message.field, index);
-    const name = maybeSnakeToCamel(field.name, options);
-    maybeAddComment(options, info, (text) => comments.push(name + '\n' + text));
-  });
-  if (comments.length) {
-    prop = prop.addJavadoc(comments.join('\n'));
-  }
-  return prop;
-  */
 }
 
 // Create a function that constructs 'base' instance with default values for decode to use as a prototype
@@ -863,9 +820,9 @@ function generateBaseInstanceFactory(
     fields.unshift(code`$type: '${fullTypeName}'`);
   // }
 
-  if (ctx.options.unknownFields && ctx.options.initializeFieldsAsUndefined) {
-    fields.push(code`_unknownFields: {}`);
-  }
+  // if (ctx.options.unknownFields && ctx.options.initializeFieldsAsUndefined) {
+  //   fields.push(code`_unknownFields: {}`);
+  // }
 
   return code`
     function createBase${fullName}(): ${fullName} {
@@ -1560,37 +1517,37 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
   const chunks: Code[] = [];
 
   // create the create function definition
-  if (ctx.options.useExactTypes) {
+  // if (ctx.options.useExactTypes) {
     chunks.push(code`
       create<I extends ${utils.Exact}<${utils.DeepPartial}<${fullName}>, I>>(base?: I): ${fullName} {
         return ${fullName}.fromPartial(base ?? ({} as any));
       },
     `);
-  } else {
-    chunks.push(code`
-      create(base?: ${utils.DeepPartial}<${fullName}>): ${fullName} {
-        return ${fullName}.fromPartial(base ?? {});
-      },
-    `);
-  }
+  // } else {
+  //   chunks.push(code`
+  //     create(base?: ${utils.DeepPartial}<${fullName}>): ${fullName} {
+  //       return ${fullName}.fromPartial(base ?? {});
+  //     },
+  //   `);
+  // }
 
   // create the fromPartial function declaration
   const paramName = messageDesc.field.length > 0 ? "object" : "_";
 
-  if (ctx.options.useExactTypes) {
+  // if (ctx.options.useExactTypes) {
     chunks.push(code`
       fromPartial<I extends ${utils.Exact}<${utils.DeepPartial}<${fullName}>, I>>(${paramName}: I): ${fullName} {
     `);
-  } else {
-    chunks.push(code`
-      fromPartial(${paramName}: ${utils.DeepPartial}<${fullName}>): ${fullName} {
-    `);
-  }
+  // } else {
+  //   chunks.push(code`
+  //     fromPartial(${paramName}: ${utils.DeepPartial}<${fullName}>): ${fullName} {
+  //   `);
+  // }
 
   let createBase = code`createBase${fullName}()`;
-  if (options.usePrototypeForDefaults) {
-    createBase = code`Object.create(${createBase}) as ${fullName}`;
-  }
+  // if (options.usePrototypeForDefaults) {
+  //   createBase = code`Object.create(${createBase}) as ${fullName}`;
+  // }
 
   chunks.push(code`const message = ${createBase}${maybeAsAny(options)};`);
 

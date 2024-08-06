@@ -271,7 +271,7 @@ export function impFile(options: Options, spec: string) {
 }
 
 export function impProto(options: Options, module: string, type: string): Import {
-  const prefix = options.onlyTypes ? "t:" : "";
+  const prefix = "";
   const protoFile = `${module}.proto`;
   if (options.M[protoFile]) {
     return imp(`${prefix}${type}@${options.M[protoFile]}`);

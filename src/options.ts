@@ -71,21 +71,23 @@ export type Options = {
   // lowerCaseServiceMethods: boolean;
   // nestJs: boolean;
   // env: EnvOption;
+  // TODO: Figure out if we need these 3, more detail/investigation needed
   unrecognizedEnum: boolean;
   unrecognizedEnumName: string;
   unrecognizedEnumValue: number;
-  exportCommonSymbols: boolean;
-  outputSchema: boolean | "no-file-descriptor";
-  onlyTypes: boolean;
-  emitImportedFiles: boolean;
-  useAbortSignal: boolean;
-  useExactTypes: boolean;
-  useAsyncIterable: boolean;
-  unknownFields: boolean;
-  usePrototypeForDefaults: boolean;
-  useJsonName: boolean;
-  useJsonWireFormat: boolean;
-  useNumericEnumForJson: boolean;
+  
+  // exportCommonSymbols: boolean;
+  // outputSchema: boolean | "no-file-descriptor";
+  // onlyTypes: boolean;
+  // emitImportedFiles: boolean;
+  // useAbortSignal: boolean;
+  // useExactTypes: boolean;
+  // useAsyncIterable: boolean;
+  // unknownFields: boolean;
+  // usePrototypeForDefaults: boolean;
+  useJsonName: boolean; // TODO: See about consistency with dart proto plugin
+  useJsonWireFormat: boolean; // TODO: I think we might want this defaulted to true
+  // useNumericEnumForJson: boolean;
   initializeFieldsAsUndefined: boolean;
   useMapType: boolean;
   useReadonlyTypes: boolean;
@@ -140,18 +142,18 @@ export function defaultOptions(): Options {
     unrecognizedEnum: true,
     unrecognizedEnumName: "UNRECOGNIZED",
     unrecognizedEnumValue: -1,
-    exportCommonSymbols: true,
-    outputSchema: false,
-    onlyTypes: false,
-    emitImportedFiles: true,
-    useExactTypes: true,
-    useAbortSignal: false,
-    useAsyncIterable: false,
-    unknownFields: false,
-    usePrototypeForDefaults: false,
+    // exportCommonSymbols: true,
+    // outputSchema: false,
+    // onlyTypes: false,
+    // emitImportedFiles: true,
+    // useExactTypes: true,
+    // useAbortSignal: false,
+    // useAsyncIterable: false,
+    // unknownFields: false,
+    // usePrototypeForDefaults: false,
     useJsonName: false,
     useJsonWireFormat: false,
-    useNumericEnumForJson: false,
+    // useNumericEnumForJson: false,
     initializeFieldsAsUndefined: true,
     useMapType: false,
     useReadonlyTypes: false,
@@ -233,23 +235,23 @@ export function optionsFromParameter(parameter: string | undefined): Options {
   }
 
   if (options.useJsonWireFormat) {
-    if (!options.onlyTypes) {
-      // useJsonWireFormat requires onlyTypes=true
-      options.useJsonWireFormat = false;
-    } else {
+    // if (!options.onlyTypes) {
+    //   // useJsonWireFormat requires onlyTypes=true
+    //   options.useJsonWireFormat = false;
+    // } else {
       // useJsonWireFormat implies stringEnums=true and useDate=string
       // options.stringEnums = true;
       options.useDate = DateOption.STRING;
-    }
+    // }
   }
 
   // if (options.nestJs) {
   //   options.initializeFieldsAsUndefined = false;
   // }
 
-  if (options.outputIndex) {
-    options.exportCommonSymbols = false;
-  }
+  // if (options.outputIndex) {
+  //   options.exportCommonSymbols = false;
+  // }
 
   // if (options.rpcBeforeRequest || options.rpcAfterResponse || options.rpcErrorHandler) {
   //   const includesGeneric = options.outputServices.includes(ServiceOption.GENERIC);

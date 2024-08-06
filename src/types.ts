@@ -758,9 +758,9 @@ export function rawRequestType(
 }
 
 export function observableType(ctx: Context, asType: boolean = false): Code {
-  if (ctx.options.useAsyncIterable) {
-    return code`AsyncIterable`;
-  } else if (asType) {
+  // if (ctx.options.useAsyncIterable) {
+  //   return code`AsyncIterable`;
+  if (asType) {
     return code`${imp("t:Observable@rxjs")}`;
   } else {
     return code`${imp("Observable@rxjs")}`;
