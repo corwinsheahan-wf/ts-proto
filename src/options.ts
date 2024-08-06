@@ -88,9 +88,9 @@ export type Options = {
   useJsonName: boolean; // TODO: See about consistency with dart proto plugin
   useJsonWireFormat: boolean; // TODO: I think we might want this defaulted to true
   // useNumericEnumForJson: boolean;
-  initializeFieldsAsUndefined: boolean;
-  useMapType: boolean;
-  useReadonlyTypes: boolean;
+  // initializeFieldsAsUndefined: boolean;
+  useMapType: boolean; // TODO: We probably want this, but it's defualted to false
+  // useReadonlyTypes: boolean;
   useSnakeTypeName: boolean;
   outputExtensions: boolean;
   outputIndex: boolean;
@@ -154,9 +154,9 @@ export function defaultOptions(): Options {
     useJsonName: false,
     useJsonWireFormat: false,
     // useNumericEnumForJson: false,
-    initializeFieldsAsUndefined: true,
+    // initializeFieldsAsUndefined: true,
     useMapType: false,
-    useReadonlyTypes: false,
+    // useReadonlyTypes: false,
     useSnakeTypeName: true,
     outputExtensions: false,
     outputIndex: false,

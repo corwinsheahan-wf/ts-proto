@@ -526,16 +526,14 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
         ? code`string`
         : code`Uint8Array`;
     case ".google.protobuf.ListValue":
-      return ctx.options.useReadonlyTypes ? code`ReadonlyArray<any>` : code`Array<any>`;
+      return code`Array<any>`;
     case ".google.protobuf.Value":
       return code`any`;
     case ".google.protobuf.Struct":
-      return ctx.options.useReadonlyTypes ? code`{readonly [key: string]: any}` : code`{[key: string]: any}`;
+      return code`{[key: string]: any}`;
     case ".google.protobuf.FieldMask":
       return ctx.options.useJsonWireFormat
         ? code`string`
-        : ctx.options.useReadonlyTypes
-        ? code`readonly string[]`
         : code`string[]`;
     case ".google.protobuf.Duration":
       return ctx.options.useJsonWireFormat ? code`string` : undefined;
@@ -659,9 +657,9 @@ export function toTypeName(
       }
       return finalize(code`{ [key: ${keyType} ]: ${valueType} }`, ensureOptional);
     }
-    if (ctx.options.useReadonlyTypes) {
-      return finalize(code`readonly ${type}[]`, ensureOptional);
-    }
+    // if (ctx.options.useReadonlyTypes) {
+    //   return finalize(code`readonly ${type}[]`, ensureOptional);
+    // }
     return finalize(code`${type}[]`, ensureOptional);
   }
 

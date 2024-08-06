@@ -757,7 +757,7 @@ function generateInterfaceDeclaration(
     const fieldKey = safeAccessor(getFieldName(fieldDesc, options));
     const isOptional = isOptionalProperty(fieldDesc, messageDesc.options, options, currentFile.isProto3Syntax);
     const type = toTypeName(ctx, messageDesc, fieldDesc, isOptional);
-    chunks.push(code`${maybeReadonly(options)}${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
+    chunks.push(code`${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
   });
 
   // if (ctx.options.unknownFields) {
@@ -795,12 +795,12 @@ function generateBaseInstanceFactory(
     //   continue;
     // }
 
-    if (
-      !options.initializeFieldsAsUndefined &&
-      isOptionalProperty(field, messageDesc.options, options, currentFile.isProto3Syntax)
-    ) {
-      continue;
-    }
+    // if (
+    //   !options.initializeFieldsAsUndefined &&
+    //   isOptionalProperty(field, messageDesc.options, options, currentFile.isProto3Syntax)
+    // ) {
+    //   continue;
+    // }
 
     const fieldKey = safeAccessor(getFieldName(field, options));
     const val = isWithinOneOf(field)
@@ -1221,9 +1221,9 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
       }
     };
 
-    const noDefaultValue =
-      !options.initializeFieldsAsUndefined &&
-      isOptionalProperty(field, messageDesc.options, options, currentFile.isProto3Syntax);
+    const noDefaultValue = false;
+      // !options.initializeFieldsAsUndefined &&
+      // isOptionalProperty(field, messageDesc.options, options, currentFile.isProto3Syntax);
 
     // and then use the snippet to handle repeated fields if necessary
     if (canonicalFromJson[fullTypeName]?.[fieldName]) {
@@ -1549,7 +1549,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
   //   createBase = code`Object.create(${createBase}) as ${fullName}`;
   // }
 
-  chunks.push(code`const message = ${createBase}${maybeAsAny(options)};`);
+  chunks.push(code`const message = ${createBase};`);
 
   // add a check for each incoming field
   messageDesc.field.forEach((field) => {
@@ -1615,8 +1615,8 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
       }
     };
 
-    const noDefaultValue =
-      !options.initializeFieldsAsUndefined && isOptionalProperty(field, messageDesc.options, options, true);
+    const noDefaultValue = false;
+    //   !options.initializeFieldsAsUndefined && isOptionalProperty(field, messageDesc.options, options, true);
 
     // and then use the snippet to handle repeated fields if necessary
     if (isRepeated(field)) {
@@ -1740,11 +1740,11 @@ function convertToObjectKey(
     return code`${variableName}`;
   }
 }
-
-function maybeReadonly(options: Options): string {
-  return options.useReadonlyTypes ? "readonly " : "";
-}
-
-function maybeAsAny(options: Options): string {
-  return options.useReadonlyTypes ? " as any" : "";
-}
+//
+// function maybeReadonly(options: Options): string {
+//   return options.useReadonlyTypes ? "readonly " : "";
+// }
+//
+// function maybeAsAny(options: Options): string {
+//   return options.useReadonlyTypes ? " as any" : "";
+// }
