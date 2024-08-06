@@ -1,7 +1,6 @@
 import { TypeMap } from "./types";
 import { Utils } from "./main";
 import { Options } from "./options";
-import { FileDescriptorProto } from "ts-proto-descriptors";
 
 /** Provides a parameter object for passing around the various context/config data. */
 export interface BaseContext {

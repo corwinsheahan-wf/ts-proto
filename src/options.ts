@@ -19,20 +19,7 @@ export enum JsonTimestampOption {
   RAW = "raw",
 }
 
-export enum EnvOption {
-  NODE = "node",
-  BROWSER = "browser",
-  BOTH = "both",
-}
-
-export enum OneofOption {
-  PROPERTIES = "properties",
-  UNIONS = "unions",
-}
-
 export enum ServiceOption {
-  GRPC = "grpc-js",
-  NICE_GRPC = "nice-grpc",
   GENERIC = "generic-definitions",
   DEFAULT = "default",
   NONE = "none",
@@ -41,7 +28,7 @@ export enum ServiceOption {
 export type Options = {
   // Adds a context param to interfaces, could be useful at some point for things like tracing
   context: boolean;
-  snakeToCamel: Array<"json" | "keys">;
+  // snakeToCamel: Array<"json" | "keys">;
   // TODO: Deterimine what we'd need here
   forceLong: LongOption;
 
@@ -67,7 +54,7 @@ export type Options = {
 export function defaultOptions(): Options {
   return {
     context: false,
-    snakeToCamel: ["json", "keys"],
+    // snakeToCamel: ["json", "keys"],
     emitDefaultValues: [],
     forceLong: LongOption.NUMBER, // Probably default to `string`?
     useJsTypeOverride: false,
@@ -107,13 +94,13 @@ export function optionsFromParameter(parameter: string | undefined): Options {
     options.useDate = DateOption.TIMESTAMP;
   }
 
-  if ((options.snakeToCamel as any) === false) {
-    options.snakeToCamel = [];
-  } else if ((options.snakeToCamel as any) === true) {
-    options.snakeToCamel = ["keys", "json"];
-  } else if (typeof options.snakeToCamel === "string") {
-    options.snakeToCamel = (options.snakeToCamel as string).split("_") as any;
-  }
+  // if ((options.snakeToCamel as any) === false) {
+  //   options.snakeToCamel = [];
+  // } else if ((options.snakeToCamel as any) === true) {
+  //   options.snakeToCamel = ["keys", "json"];
+  // } else if (typeof options.snakeToCamel === "string") {
+  //   options.snakeToCamel = (options.snakeToCamel as string).split("_") as any;
+  // }
 
   if ((options.emitDefaultValues as any) === "json-methods") {
     options.emitDefaultValues = ["json-methods"];

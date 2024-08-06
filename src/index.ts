@@ -1,1 +1,1 @@
-export { DateOption, EnvOption, JsonTimestampOption, LongOption, OneofOption, Options, ServiceOption } from "./options";
+export { DateOption, JsonTimestampOption, LongOption, Options, ServiceOption } from "./options";

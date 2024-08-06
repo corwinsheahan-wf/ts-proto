@@ -207,7 +207,7 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
 
 export function getFieldJsonName(
   field: Pick<FieldDescriptorProto, "name" | "jsonName">,
-  options: Pick<Options, "snakeToCamel" | "useJsonName">,
+  options: Pick<Options, "useJsonName">,
 ): string {
   // use "json_name" defined in a proto file
   if (options.useJsonName) {
@@ -215,25 +215,25 @@ export function getFieldJsonName(
   }
   // jsonName will be camelCased by the protocol compiler, plus can be overridden by the user,
   // so just use that instead of our own maybeSnakeToCamel
-  if (options.snakeToCamel.includes("json")) {
+  // if (options.snakeToCamel.includes("json")) {
     return field.jsonName;
-  } else {
-    // The user wants to keep snake case in the JSON, but we still want to see if the jsonName
-    // attribute is set as an explicit override.
-    const probableJsonName = snakeToCamel(field.name);
-    const isJsonNameSet = probableJsonName !== field.jsonName;
-    return isJsonNameSet ? field.jsonName : field.name;
-  }
+  // } else {
+  //   // The user wants to keep snake case in the JSON, but we still want to see if the jsonName
+  //   // attribute is set as an explicit override.
+  //   const probableJsonName = snakeToCamel(field.name);
+  //   const isJsonNameSet = probableJsonName !== field.jsonName;
+  //   return isJsonNameSet ? field.jsonName : field.name;
+  // }
 }
 
 export function getFieldName(
   field: Pick<FieldDescriptorProto, "name" | "jsonName">,
-  options: Pick<Options, "snakeToCamel" | "useJsonName">,
+  options: Pick<Options, "useJsonName">,
 ): string {
   if (options.useJsonName) {
     return field.jsonName;
   }
-  return maybeSnakeToCamel(field.name, options);
+  return maybeSnakeToCamel(field.name);
 }
 
 /**

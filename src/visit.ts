@@ -38,7 +38,7 @@ export function visit(
     // I.e. Foo_Bar.Zaz_Inner
     const protoFullName = protoPrefix + enumDesc.name;
     // I.e. FooBar_ZazInner
-    const tsFullName = tsPrefix + maybeSnakeToCamel(enumDesc.name, options);
+    const tsFullName = tsPrefix + maybeSnakeToCamel(enumDesc.name);
     const nestedSourceInfo = sourceInfo.open(childEnumType, index);
     enumFn(tsFullName, enumDesc, nestedSourceInfo, protoFullName);
   });
@@ -50,7 +50,7 @@ export function visit(
     // I.e. Foo_Bar.Zaz_Inner
     const protoFullName = protoPrefix + message.name;
     // I.e. FooBar_ZazInner
-    const tsFullName = tsPrefix + maybeSnakeToCamel(messageName(message), options);
+    const tsFullName = tsPrefix + maybeSnakeToCamel(messageName(message));
     const nestedSourceInfo = sourceInfo.open(childType, index);
     messageFn(tsFullName, message, nestedSourceInfo, protoFullName);
     const delim = "";
