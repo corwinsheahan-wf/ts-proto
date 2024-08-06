@@ -39,36 +39,36 @@ export enum ServiceOption {
 }
 
 export type Options = {
+  // Adds a context param to interfaces, could be useful at some point for things like tracing
   context: boolean;
   snakeToCamel: Array<"json" | "keys">;
+  // TODO: Deterimine what we'd need here
   forceLong: LongOption;
   useJsTypeOverride: boolean;
-  globalThisPolyfill: boolean;
+  // globalThisPolyfill: boolean;  // false
   useOptionals: boolean | "none" | "deprecatedOnly" | "messages" | "all"; // boolean is deprecated
   emitDefaultValues: Array<"json-methods">;
   useDate: DateOption;
   useJsonTimestamp: JsonTimestampOption;
-  useMongoObjectId: boolean;
-  oneof: OneofOption;
+  // oneof: OneofOption;
   esModuleInterop: boolean;
   fileSuffix: string;
   importSuffix: string;
-  outputEncodeMethods: true | false | "encode-only" | "decode-only" | "encode-no-creation";
-  outputJsonMethods: true | false | "to-only" | "from-only";
-  outputPartialMethods: boolean;
-  outputTypeAnnotations: boolean | "static-only" | "optional";
-  outputTypeRegistry: boolean;
-  stringEnums: boolean;
-  constEnums: boolean;
-  removeEnumPrefix: boolean;
-  enumsAsLiterals: boolean;
+  // outputJsonMethods: true | false | "to-only" | "from-only"; // Default to both
+  // outputPartialMethods: boolean; // Hopefully we can remove, but for now default to true
+  // outputTypeAnnotations: boolean | "static-only" | "optional"; // Defualt to true, implied by outputTypeRegistry
+  // outputTypeRegistry: boolean; // Default to tru for now, but maybe we can get rid of it entirely
+  // stringEnums: boolean; // Don't think we need this, can be false. Description says for only types and grpc REST
+  // constEnums: boolean; // No info about this, just stick with default
+  // removeEnumPrefix: boolean;
+  // enumsAsLiterals: boolean;
   outputClientImpl: boolean | "grpc-web" | "generic";
   outputServices: ServiceOption[];
   addGrpcMetadata: boolean;
   metadataType: string | undefined;
   addNestjsRestParameter: boolean;
   returnObservable: boolean;
-  lowerCaseServiceMethods: boolean;
+  // lowerCaseServiceMethods: boolean;
   nestJs: boolean;
   env: EnvOption;
   unrecognizedEnum: boolean;
@@ -109,28 +109,27 @@ export function defaultOptions(): Options {
     context: false,
     snakeToCamel: ["json", "keys"],
     emitDefaultValues: [],
-    globalThisPolyfill: false,
-    forceLong: LongOption.NUMBER,
+    // globalThisPolyfill: false,
+    forceLong: LongOption.NUMBER, // Probably default to `string`?
     useJsTypeOverride: false,
-    useOptionals: "none",
-    useDate: DateOption.DATE,
+    useOptionals: "none", // Maybe will need this? 
+    useDate: DateOption.DATE, // related to timestamps, not sure we'll need this at all
     useJsonTimestamp: JsonTimestampOption.RFC3339,
-    useMongoObjectId: false,
-    oneof: OneofOption.PROPERTIES,
-    esModuleInterop: false,
+    // oneof: OneofOption.PROPERTIES, // We don't currently support oneof because the dart protobuf compiler doesn't
+    esModuleInterop: false, // more investigation, tied to `importSuffix`
     fileSuffix: "",
-    importSuffix: "",
-    lowerCaseServiceMethods: false,
-    outputEncodeMethods: true,
-    outputJsonMethods: true,
-    outputPartialMethods: true,
-    outputTypeAnnotations: false,
-    outputTypeRegistry: false,
-    stringEnums: false,
-    constEnums: false,
-    removeEnumPrefix: false,
-    enumsAsLiterals: false,
-    outputClientImpl: true,
+    importSuffix: "", // probably can kebash and default to something like `.pb.`
+    // lowerCaseServiceMethods: false,// Let's just default to true
+    // outputEncodeMethods: true, // false
+    // outputJsonMethods: true,
+    // outputPartialMethods: true,
+    // outputTypeAnnotations: false,
+    // outputTypeRegistry: false,
+    // stringEnums: false,
+    // constEnums: false,
+    // removeEnumPrefix: false,
+    // enumsAsLiterals: false,
+    outputClientImpl: "generic",
     outputServices: [],
     returnObservable: false,
     addGrpcMetadata: false,
@@ -172,34 +171,20 @@ export function defaultOptions(): Options {
   };
 }
 
-const nestJsOptions: Partial<Options> = {
-  lowerCaseServiceMethods: true,
-  outputEncodeMethods: false,
-  outputJsonMethods: false,
-  outputPartialMethods: false,
-  outputClientImpl: false,
-  useDate: DateOption.TIMESTAMP,
-};
-
 export function optionsFromParameter(parameter: string | undefined): Options {
   const options = defaultOptions();
   if (parameter) {
     const parsed = parseParameter(parameter);
-    if (parsed.nestJs) {
-      Object.assign(options, nestJsOptions);
-    }
     Object.assign(options, parsed);
   }
 
   // onlyTypes=true implies outputJsonMethods=false,outputEncodeMethods=false,outputClientImpl=false,nestJs=false
   if (options.onlyTypes) {
-    options.outputJsonMethods = false;
-    options.outputEncodeMethods = false;
+    // options.outputJsonMethods = false;
     options.outputClientImpl = false;
     options.nestJs = false;
   } else if (
-    !options.outputJsonMethods &&
-    !options.outputEncodeMethods &&
+    // !options.outputJsonMethods &&
     !options.outputClientImpl &&
     !options.nestJs
   ) {
@@ -223,10 +208,6 @@ export function optionsFromParameter(parameter: string | undefined): Options {
   // its own controllers output (although nestjs users can ask for other services too).
   if (options.outputServices.length == 0 && !options.nestJs) {
     options.outputServices = [ServiceOption.DEFAULT];
-  }
-  // If using nestJs + other services, add the encode methods back
-  if (options.nestJs && options.outputServices.length > 0) {
-    options.outputEncodeMethods = true;
   }
 
   if ((options.useDate as any) === true) {
@@ -257,7 +238,7 @@ export function optionsFromParameter(parameter: string | undefined): Options {
       options.useJsonWireFormat = false;
     } else {
       // useJsonWireFormat implies stringEnums=true and useDate=string
-      options.stringEnums = true;
+      // options.stringEnums = true;
       options.useDate = DateOption.STRING;
     }
   }
@@ -283,9 +264,9 @@ export function optionsFromParameter(parameter: string | undefined): Options {
     options.unrecognizedEnumValue = Number(options.unrecognizedEnumValue);
   }
 
-  if (options.outputClientImpl === "generic") {
-    options.outputTypeRegistry = true;
-  }
+  // if (options.outputClientImpl === "generic") {
+  //   // options.outputTypeRegistry = true;
+  // }
 
   return options;
 }
@@ -354,9 +335,9 @@ ${fileName ? `// source: ${fileName}` : ""}
     forceModuleImport: esModuleInterop ? [] : [pbjs],
   };
 }
-
-export function addTypeToMessages(options: Options): boolean {
-  return (
-    (options.outputTypeAnnotations || options.outputTypeRegistry) && options.outputTypeAnnotations !== "static-only"
-  );
-}
+//
+// export function addTypeToMessages(options: Options): boolean {
+//   return (
+//     (options.outputTypeAnnotations || options.outputTypeRegistry) && options.outputTypeAnnotations !== "static-only"
+//   );
+// }

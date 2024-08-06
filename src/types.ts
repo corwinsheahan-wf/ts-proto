@@ -27,41 +27,6 @@ import {
 } from "./utils";
 import { visit } from "./visit";
 
-/** Based on https://github.com/dcodeIO/protobuf.js/blob/master/src/types.js#L37. */
-export function basicWireType(type: FieldDescriptorProto_Type): number {
-  switch (type) {
-    case FieldDescriptorProto_Type.TYPE_DOUBLE:
-      return 1;
-    case FieldDescriptorProto_Type.TYPE_FLOAT:
-      return 5;
-    case FieldDescriptorProto_Type.TYPE_INT32:
-    case FieldDescriptorProto_Type.TYPE_ENUM:
-    case FieldDescriptorProto_Type.TYPE_UINT32:
-    case FieldDescriptorProto_Type.TYPE_SINT32:
-      return 0;
-    case FieldDescriptorProto_Type.TYPE_FIXED32:
-    case FieldDescriptorProto_Type.TYPE_SFIXED32:
-      return 5;
-    case FieldDescriptorProto_Type.TYPE_INT64:
-    case FieldDescriptorProto_Type.TYPE_UINT64:
-    case FieldDescriptorProto_Type.TYPE_SINT64:
-      return 0;
-    case FieldDescriptorProto_Type.TYPE_FIXED64:
-    case FieldDescriptorProto_Type.TYPE_SFIXED64:
-      return 1;
-    case FieldDescriptorProto_Type.TYPE_BOOL:
-      return 0;
-    case FieldDescriptorProto_Type.TYPE_STRING:
-    case FieldDescriptorProto_Type.TYPE_BYTES:
-    case FieldDescriptorProto_Type.TYPE_MESSAGE:
-      return 2;
-    case FieldDescriptorProto_Type.TYPE_GROUP:
-      return 3;
-    default:
-      throw new Error("Invalid type " + type);
-  }
-}
-
 export function basicLongWireType(type: FieldDescriptorProto_Type): number | undefined {
   switch (type) {
     case FieldDescriptorProto_Type.TYPE_INT64:
@@ -240,12 +205,12 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
         enumProto.value.find((v) => (useDefaultValue ? v.name === field.defaultValue : v.number === 0)) ||
         enumProto.value[0];
 
-      if (options.stringEnums) {
-        const enumType = messageToTypeName(ctx, field.typeName);
-        return code`${enumType}.${getEnumMemberName(ctx, enumProto, defaultEnum)}`;
-      } else {
+      // if (options.stringEnums) {
+      //   const enumType = messageToTypeName(ctx, field.typeName);
+      //   return code`${enumType}.${getEnumMemberName(ctx, enumProto, defaultEnum)}`;
+      // } else {
         return defaultEnum.number;
-      }
+      // }
 
     case FieldDescriptorProto_Type.TYPE_INT64:
     case FieldDescriptorProto_Type.TYPE_UINT64:
@@ -261,15 +226,15 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
         }
       }
 
-      if (options.forceLong === LongOption.LONG) {
-        const value =
-          field.type === FieldDescriptorProto_Type.TYPE_UINT64 || field.type === FieldDescriptorProto_Type.TYPE_FIXED64
-            ? "UZERO"
-            : "ZERO";
-        return code`${utils.Long}.${useDefaultValue ? "fromNumber" : value}${
-          useDefaultValue ? `(${numericDefaultVal})` : ""
-        }`;
-      } else if (options.forceLong === LongOption.STRING) {
+      // if (options.forceLong === LongOption.LONG) {
+      //   const value =
+      //     field.type === FieldDescriptorProto_Type.TYPE_UINT64 || field.type === FieldDescriptorProto_Type.TYPE_FIXED64
+      //       ? "UZERO"
+      //       : "ZERO";
+      //   return code`${utils.Long}.${useDefaultValue ? "fromNumber" : value}${
+      //     useDefaultValue ? `(${numericDefaultVal})` : ""
+      //   }`;
+      if (options.forceLong === LongOption.STRING) {
         return `"${numericDefaultVal}"`;
       } else if (options.forceLong === LongOption.BIGINT) {
         return `BigInt("${numericDefaultVal}")`;
@@ -333,13 +298,13 @@ export function notDefaultCheck(
       const typeInfo = typeMap.get(field.typeName)!;
       const enumProto = typeInfo[2] as EnumDescriptorProto;
       const defaultEnum = enumProto.value.find((v) => v.number === defaultValue(ctx, field)) || enumProto.value[0];
-      if (options.stringEnums) {
-        const enumType = messageToTypeName(ctx, field.typeName);
-        const enumValue = getEnumMemberName(ctx, enumProto, defaultEnum);
-        return code`${maybeNotUndefinedAnd} ${place} !== ${enumType}.${enumValue}`;
-      } else {
+      // if (options.stringEnums) {
+      //   const enumType = messageToTypeName(ctx, field.typeName);
+      //   const enumValue = getEnumMemberName(ctx, enumProto, defaultEnum);
+      //   return code`${maybeNotUndefinedAnd} ${place} !== ${enumType}.${enumValue}`;
+      // } else {
         return code`${maybeNotUndefinedAnd} ${place} !== ${defaultEnum.number}`;
-      }
+      // }
     case FieldDescriptorProto_Type.TYPE_UINT64:
     case FieldDescriptorProto_Type.TYPE_FIXED64:
     case FieldDescriptorProto_Type.TYPE_INT64:
@@ -459,10 +424,6 @@ export function isEnum(field: FieldDescriptorProto): boolean {
 
 export function isWithinOneOf(field: FieldDescriptorProto): boolean {
   return field.hasOwnProperty("oneofIndex");
-}
-
-export function isWithinOneOfThatShouldBeUnion(options: Options, field: FieldDescriptorProto): boolean {
-  return isWithinOneOf(field) && options.oneof === OneofOption.UNIONS && !field.proto3Optional;
 }
 
 export function isRepeated(field: FieldDescriptorProto): boolean {
@@ -614,9 +575,10 @@ export function wrapperTypeName(typeName: string): string | undefined {
 
 function longTypeName(ctx: Context): Code {
   const { options, utils } = ctx;
-  if (options.forceLong === LongOption.LONG) {
-    return code`${utils.Long}`;
-  } else if (options.forceLong === LongOption.STRING) {
+  // if (options.forceLong === LongOption.LONG) {
+  //   return code`${utils.Long}`;
+  // } else
+  if (options.forceLong === LongOption.STRING) {
     return code`string`;
   } else if (options.forceLong === LongOption.BIGINT) {
     return code`bigint`;
@@ -662,10 +624,6 @@ export function messageToTypeName(
     }
   }
 
-  // need to use endsWith instead of === because objectid could be imported from an external proto file
-  if (!typeOptions.keepValueType && options.useMongoObjectId && protoType.endsWith(".ObjectId")) {
-    return code`mongodb.ObjectId`;
-  }
   const [module, type] = toModuleAndType(typeMap, protoType);
   return code`${impProto(options, module, type)}`;
 }
@@ -736,7 +694,7 @@ export function toTypeName(
     (!isWithinOneOf(field) &&
       isMessage(field) &&
       (options.useOptionals === false || options.useOptionals === "none")) ||
-      (isWithinOneOf(field) && options.oneof === OneofOption.PROPERTIES) ||
+      // (isWithinOneOf(field) && options.oneof === OneofOption.PROPERTIES) ||
       (isWithinOneOf(field) && field.proto3Optional) ||
       ensureOptional,
   );
@@ -817,10 +775,6 @@ export function observableType(ctx: Context, asType: boolean = false): Code {
 
 export function requestType(ctx: Context, methodDesc: MethodDescriptorProto, partial: boolean = false): Code {
   let typeName = rawRequestType(ctx, methodDesc, { keepValueType: true });
-
-  if (partial) {
-    typeName = code`${ctx.utils.DeepPartial}<${typeName}>`;
-  }
 
   if (methodDesc.clientStreaming) {
     return code`${observableType(ctx)}<${typeName}>`;

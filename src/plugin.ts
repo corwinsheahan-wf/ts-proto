@@ -56,16 +56,16 @@ async function main() {
     }),
   );
 
-  if (options.outputTypeRegistry) {
-    const utils = makeUtils(options);
-    const ctx: BaseContext = { options, typeMap, utils };
+  // if (options.outputTypeRegistry) {
+  //   const utils = makeUtils(options);
+  //   const ctx: BaseContext = { options, typeMap, utils };
 
     const path = "typeRegistry.ts";
     const code = generateTypeRegistry(ctx);
 
     const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
     files.push({ name: path, content });
-  }
+  // }
 
   if (options.outputIndex) {
     for (const [path, code] of generateIndexFiles(filesToGenerate, options)) {

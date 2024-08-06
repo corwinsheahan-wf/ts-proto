@@ -10,7 +10,8 @@ import {
 import ReadStream = NodeJS.ReadStream;
 import { SourceDescription } from "./sourceInfo";
 import { Options, ServiceOption } from "./options";
-import { camelCaseGrpc, maybeSnakeToCamel, snakeToCamel } from "./case";
+import { maybeSnakeToCamel, snakeToCamel } from "./case";
+import { camelCase as camelCaseAnything } from "case-anything";
 
 export function protoFilesToGenerate(request: CodeGeneratorRequest): FileDescriptorProto[] {
   return request.protoFile.filter((f) => request.fileToGenerate.includes(f.name));
@@ -205,11 +206,7 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
    * @returns The formatted method name
    */
   public static formatName(methodName: string, options: Options) {
-    let result = methodName;
-    if (options.lowerCaseServiceMethods || options.outputServices.includes(ServiceOption.GRPC)) {
-      if (options.snakeToCamel) result = camelCaseGrpc(result);
-    }
-    return result;
+    return camelCaseAnything(methodName);
   }
 }
 
@@ -282,14 +279,6 @@ export function impProto(options: Options, module: string, type: string): Import
   return imp(`${prefix}${type}@./${module}${options.fileSuffix}${options.importSuffix}`);
 }
 
-export function tryCatchBlock(tryBlock: Code | string, handleErrorBlock: Code | string): Code {
-  return code`try {
-    ${tryBlock}
-  } catch (error) {
-    ${handleErrorBlock}
-  }`;
-}
-
 export function arrowFunction(params: string, body: Code | string, isOneLine: boolean = true): Code {
   if (isOneLine) {
     return code`(${params}) => ${body}`;
@@ -303,20 +292,7 @@ export function nullOrUndefined(options: Pick<Options, "useNullAsOptional">, has
 export function maybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string, prefix?: string) {
   return options.useNullAsOptional ? ` ${prefix} ${typeName} !== null` : "";
 }
-export function maybeCheckIsNull(options: Pick<Options, "useNullAsOptional">, typeName: string, prefix?: string) {
-  return options.useNullAsOptional ? ` ${prefix} ${typeName} === null` : "";
-}
-
-export function withOrMaybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNotNull(options, typeName, "||");
-}
-export function withOrMaybeCheckIsNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNull(options, typeName, "||");
-}
 export function withAndMaybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNotNull(options, typeName, "&&");
-}
-export function withAndMaybeCheckIsNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
   return maybeCheckIsNotNull(options, typeName, "&&");
 }
 
