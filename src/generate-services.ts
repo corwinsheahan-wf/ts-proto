@@ -151,7 +151,7 @@ export function generateServiceClientImpl(
  */
 export function generateRpcType(ctx: Context, hasStreamingMethods: boolean): Code {
   const { options } = ctx;
-  const messageType = impFile(options, "MessageType@./typeRegistry");
+  const messageType = impFile("MessageType@./typeRegistry.pb");
 
   // const outputGenericClient = options.outputClientImpl === "generic";
 

@@ -31,10 +31,8 @@ export type Options = {
   // snakeToCamel: Array<"json" | "keys">;
   // TODO: Deterimine what we'd need here
 
-  useJsonTimestamp: JsonTimestampOption;
-  esModuleInterop: boolean;
-  fileSuffix: string;
-  importSuffix: string;
+  // esModuleInterop: boolean;
+  // importSuffix: string;
   outputServices: ServiceOption[]; // defaults to generic-definitions
   // TODO: Figure out if we need these 3, more detail/investigation needed
   unrecognizedEnum: boolean;
@@ -51,10 +49,8 @@ export function defaultOptions(): Options {
     // context: false,
     // snakeToCamel: ["json", "keys"],
     // emitDefaultValues: [],
-    useJsonTimestamp: JsonTimestampOption.RFC3339,
-    esModuleInterop: false, // more investigation, tied to `importSuffix`
-    fileSuffix: "",
-    importSuffix: "", // probably can kebash and default to something like `.pb.`
+    // esModuleInterop: false, // more investigation, tied to `importSuffix`
+    // importSuffix: "", // probably can kebash and default to something like `.pb.`
     outputServices: [],
     unrecognizedEnum: true,
     unrecognizedEnumName: "UNRECOGNIZED",
@@ -120,8 +116,8 @@ export function getTsPoetOpts(
   protocVersion: string,
   fileName?: string,
 ): ToStringOpts {
-  const { importSuffix, esModuleInterop } = options;
-  const pbjs = "protobufjs/minimal" + importSuffix;
+  // const { importSuffix } = options;
+  // const pbjs = "protobufjs/minimal" + importSuffix;
 
   return {
     // Comment block at the top of every source file, since these comments require specific
@@ -132,8 +128,5 @@ ${fileName ? `// source: ${fileName}` : ""}
 
     /* eslint-disable */`,
     dprintOptions: { preferSingleLine: true, lineWidth: 120 },
-    forceRequireImport: esModuleInterop ? [] : ["long"],
-    forceDefaultImport: esModuleInterop ? [pbjs] : [],
-    forceModuleImport: esModuleInterop ? [] : [pbjs],
   };
 }

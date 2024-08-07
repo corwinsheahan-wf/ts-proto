@@ -51,7 +51,7 @@ async function main() {
     }),
   );
 
-  const path = "typeRegistry.ts";
+  const path = "typeRegistry.pb.ts";
   const code = generateTypeRegistry(ctx);
 
   const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });

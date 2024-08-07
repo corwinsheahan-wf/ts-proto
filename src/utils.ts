@@ -29,14 +29,14 @@ export function generateIndexFiles(files: FileDescriptorProto[], options: Option
     chunks: [],
   };
   for (const { name, package: pkg } of files) {
-    const moduleName = name.replace(".proto", options.fileSuffix);
+    const moduleName = name.replace(".proto", ".pb");
     const pkgParts = pkg.length > 0 ? pkg.split(".") : [];
 
     const branch = pkgParts.reduce<PackageTree>((branch, part, i): PackageTree => {
       if (!(part in branch.leaves)) {
         const prePkgParts = pkgParts.slice(0, i + 1);
         const index = `index.${prePkgParts.join(".")}.ts`;
-        branch.chunks.push(code`export * as ${part} from "./${path.basename(index, ".ts") + options.importSuffix}";`);
+        branch.chunks.push(code`export * as ${part} from "./${path.basename(index, ".ts")}";`);
         branch.leaves[part] = {
           index,
           leaves: {},
@@ -45,7 +45,7 @@ export function generateIndexFiles(files: FileDescriptorProto[], options: Option
       }
       return branch.leaves[part];
     }, packageTree);
-    branch.chunks.push(code`export * from "./${moduleName + options.importSuffix}";`);
+    branch.chunks.push(code`export * from "./${moduleName}";`);
   }
 
   const indexFiles: [string, Code][] = [];
@@ -261,8 +261,8 @@ export function getPropertyAccessor(objectName: string, propertyName: string, op
     : `${objectName}${optional ? "?." : ""}[${safeAccessor(propertyName)}]`;
 }
 
-export function impFile(options: Options, spec: string) {
-  return imp(`${spec}${options.importSuffix}`);
+export function impFile(spec: string) {
+  return imp(`${spec}`);
 }
 
 export function impProto(options: Options, module: string, type: string): Import {
@@ -271,7 +271,7 @@ export function impProto(options: Options, module: string, type: string): Import
   // if (options.M[protoFile]) {
   //   return imp(`${prefix}${type}@${options.M[protoFile]}`);
   // }
-  return imp(`${prefix}${type}@./${module}${options.fileSuffix}${options.importSuffix}`);
+  return imp(`${prefix}${type}@./${module}.pb}`);
 }
 
 export function arrowFunction(params: string, body: Code | string, isOneLine: boolean = true): Code {

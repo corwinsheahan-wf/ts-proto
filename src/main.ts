@@ -75,7 +75,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   //
   // We'll also assume that the fileDesc.name is already the `company/foo.proto` path, with
   // the package already implicitly in it, so we won't re-append/strip/etc. it out/back in.
-  const suffix = `${options.fileSuffix}.ts`;
+  const suffix = `.pb.ts`;
   const moduleName = fileDesc.name.replace(".proto", suffix);
   const chunks: Code[] = [];
 
@@ -135,7 +135,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
           `);
       }
 
-      const messageTypeRegistry = impFile(options, "messageTypeRegistry@./typeRegistry");
+      const messageTypeRegistry = impFile("messageTypeRegistry@./typeRegistry.pb");
       chunks.push(code`
             ${messageTypeRegistry}.set(${fullName}.$type, ${fullName});
           `);
@@ -174,7 +174,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   // > Conversely, a file without any top-level import or export declarations is treated as a script whose contents are available in the global scope (and therefore to modules as well).
   //
   // Thus, to mark an empty file a module, we need to add `export {}` to it.
-  if (options.esModuleInterop && chunks.length === 0) {
+  if (chunks.length === 0) {
     chunks.push(code`export {};`);
   }
 
@@ -210,79 +210,14 @@ export type Utils = ReturnType<typeof makeDeepPartial> &
 /** These are runtime utility methods used by the generated code. */
 export function makeUtils(options: Options): Utils {
   const bytes = makeByteUtils();
-  const longs = makeLongUtils(options, bytes);
+  // const longs = makeLongUtils(options, bytes);
   return {
     ...bytes,
     ...makeDeepPartial(),
     ...makeObjectIdMethods(),
-    ...makeTimestampMethods(options, longs, bytes),
+    ...makeTimestampMethods(options, bytes),
     ...makeComparisonUtils(),
   };
-}
-
-function makeLongUtils(options: Options, bytes: ReturnType<typeof makeByteUtils>) {
-  // Regardless of which `forceLong` config option we're using, we always use
-  // the `long` library to either represent or at least sanity-check 64-bit values
-  const util = impFile(options, `util@protobufjs/minimal`);
-  const configure = impFile(options, `configure@protobufjs/minimal`);
-  const LongImp = imp("Long=long");
-
-  // Instead of exposing `LongImp` directly, let callers think that they are getting the
-  // `imp(Long)` but really it is that + our long initialization snippet. This means the
-  // initialization code will only be emitted in files that actually use the Long import.
-  const Long = conditionalOutput(
-    "Long",
-    code`
-      if (${util}.Long !== ${LongImp}) {
-        ${util}.Long = ${LongImp} as any;
-        ${configure}();
-      }
-    `,
-  );
-
-  const numberToLong = conditionalOutput(
-    "numberToLong",
-    code`
-      function numberToLong(number: number) {
-        return ${Long}.fromNumber(number);
-      }
-    `,
-  );
-
-  const longToString = conditionalOutput(
-    "longToString",
-    code`
-      function longToString(long: ${Long}) {
-        return long.toString();
-      }
-    `,
-  );
-
-  const longToBigint = conditionalOutput(
-    "longToBigint",
-    code`
-      function longToBigint(long: ${Long}) {
-        return BigInt(long.toString());
-      }
-    `,
-  );
-
-  const longToNumber = conditionalOutput(
-    "longToNumber",
-    code`
-      function longToNumber(long: ${Long}): number {
-        if (long.gt(${bytes.globalThis}.Number.MAX_SAFE_INTEGER)) {
-          throw new ${bytes.globalThis}.Error("Value is larger than Number.MAX_SAFE_INTEGER")
-        }
-        if (long.lt(${bytes.globalThis}.Number.MIN_SAFE_INTEGER)) {
-          throw new ${bytes.globalThis}.Error("Value is smaller than Number.MIN_SAFE_INTEGER")
-        }
-        return long.toNumber();
-      }
-    `,
-  );
-
-  return { numberToLong, longToNumber, longToString, longToBigint, Long };
 }
 
 function makeByteUtils() {
@@ -415,11 +350,10 @@ function makeObjectIdMethods() {
 
 function makeTimestampMethods(
   options: Options,
-  longs: ReturnType<typeof makeLongUtils>,
+  // longs: ReturnType<typeof makeLongUtils>,
   bytes: ReturnType<typeof makeByteUtils>,
 ) {
   const Timestamp = impProto(options, "google/protobuf/timestamp", "Timestamp");
-  const NanoDate = imp("NanoDate=nano-date");
 
   let seconds: string | Code = "Math.trunc(date.getTime() / 1_000)";
   let toNumberCode: string | Code = "t.seconds";
