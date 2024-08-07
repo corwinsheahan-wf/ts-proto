@@ -378,7 +378,7 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
     case ".google.protobuf.BoolValue":
       return code`boolean`;
     case ".google.protobuf.BytesValue":
-      return ctx.options.useJsonWireFormat ? code`string` : code`Uint8Array`;
+      return code`Uint8Array`;
     case ".google.protobuf.ListValue":
       return code`Array<any>`;
     case ".google.protobuf.Value":
@@ -386,11 +386,11 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
     case ".google.protobuf.Struct":
       return code`{[key: string]: any}`;
     case ".google.protobuf.FieldMask":
-      return ctx.options.useJsonWireFormat ? code`string` : code`string[]`;
+      return code`string[]`;
     case ".google.protobuf.Duration":
-      return ctx.options.useJsonWireFormat ? code`string` : undefined;
+      return undefined;
     case ".google.protobuf.Timestamp":
-      return ctx.options.useJsonWireFormat ? code`string` : undefined;
+      return undefined;
     default:
       return undefined;
   }
@@ -468,10 +468,7 @@ export function toTypeName(
     const mapType = messageDesc ? detectMapType(ctx, messageDesc, field) : false;
     if (mapType) {
       const { keyType, valueType } = mapType;
-      if (shouldGenerateJSMapType(ctx, messageDesc!, field)) {
-        return finalize(code`Map<${keyType}, ${valueType}>`, ensureOptional);
-      }
-      return finalize(code`{ [key: ${keyType} ]: ${valueType} }`, ensureOptional);
+      return finalize(code`Map<${keyType}, ${valueType}>`, ensureOptional);
     }
     return finalize(code`${type}[]`, ensureOptional);
   }
@@ -516,17 +513,16 @@ export function toTypeName(
  *
  * See https://github.com/stephenh/ts-proto/issues/708 for more details.
  */
-export function shouldGenerateJSMapType(ctx: Context, message: DescriptorProto, field: FieldDescriptorProto): boolean {
-  if (ctx.options.useMapType) {
+export function shouldGenerateJSMapType(): boolean {
     return true;
-  }
-  const mapType = detectMapType(ctx, message, field);
-  if (!mapType) {
-    return false;
-  }
-  return (
-    mapType.keyField.type === FieldDescriptorProto_Type.TYPE_BOOL 
-  );
+  // }
+  // const mapType = detectMapType(ctx, message, field);
+  // if (!mapType) {
+  //   return false;
+  // }
+  // return (
+  //   mapType.keyField.type === FieldDescriptorProto_Type.TYPE_BOOL 
+  // );
 }
 
 export function detectMapType(

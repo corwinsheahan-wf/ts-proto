@@ -440,7 +440,7 @@ function generateInterfaceDeclaration(
   messageDesc.field.forEach((fieldDesc, index) => {
     const info = sourceInfo.lookup(Fields.message.field, index);
     addComment(info, chunks, fieldDesc.options?.deprecated);
-    const fieldKey = safeAccessor(getFieldName(fieldDesc, options));
+    const fieldKey = safeAccessor(getFieldName(fieldDesc));
     const isOptional = isOptionalProperty(fieldDesc, messageDesc.options, options);
     const type = toTypeName(ctx, messageDesc, fieldDesc, isOptional);
     chunks.push(code`${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
@@ -461,13 +461,11 @@ function generateBaseInstanceFactory(
   const fields: Code[] = [];
 
   for (const field of messageDesc.field) {
-    const fieldKey = safeAccessor(getFieldName(field, options));
+    const fieldKey = safeAccessor(getFieldName(field));
     const val = isWithinOneOf(field)
       ? nullOrUndefined()
       : isMapType(ctx, messageDesc, field)
-      ? shouldGenerateJSMapType(ctx, messageDesc, field)
-        ? "new Map()"
-        : "{}"
+      ? "new Map()"
       : isRepeated(field)
       ? "[]"
       : defaultValue(ctx, field);
@@ -514,9 +512,9 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
 
   // add a check for each incoming field
   messageDesc.field.forEach((field) => {
-    const fieldName = getFieldName(field, options);
+    const fieldName = getFieldName(field);
     const fieldKey = safeAccessor(fieldName);
-    const jsonName = getFieldJsonName(field, options);
+    const jsonName = getFieldJsonName(field);
     const jsonProperty = getPropertyAccessor("object", jsonName);
     const jsonPropertyOptional = getPropertyAccessor("object", jsonName, true);
 
@@ -595,7 +593,6 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         const fieldType = toTypeName(ctx, messageDesc, field);
         const i = convertFromObjectKey(ctx, messageDesc, field, "key");
 
-        if (shouldGenerateJSMapType(ctx, messageDesc, field)) {
           const fallback = "new Map()";
 
           chunks.push(code`
@@ -606,18 +603,6 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
                 }, new Map())
               : ${fallback},
           `);
-        } else {
-          const fallback = "{}";
-
-          chunks.push(code`
-            ${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
-              ? Object.entries(${jsonProperty}).reduce<${fieldType}>((acc, [key, value]) => {
-                  acc[${i}] = ${readSnippet("value")};
-                  return acc;
-                }, {})
-              : ${fallback},
-          `);
-        }
       } else {
         const fallback = "[]";
 
@@ -708,8 +693,8 @@ function generateToJson(
 
   // then add a case for each field
   messageDesc.field.forEach((field) => {
-    const fieldName = getFieldName(field, options);
-    const jsonName = getFieldJsonName(field, options);
+    const fieldName = getFieldName(field);
+    const jsonName = getFieldJsonName(field);
     const jsonProperty = getPropertyAccessor("obj", jsonName);
     const messageProperty = getPropertyAccessor("message", fieldName);
 
@@ -769,7 +754,6 @@ function generateToJson(
       // Maps might need their values transformed, i.e. bytes --> base64
       const i = convertToObjectKey(ctx, messageDesc, field, "k");
 
-      if (shouldGenerateJSMapType(ctx, messageDesc, field)) {
         chunks.push(code`
           if (${messageProperty}?.size) {
             ${jsonProperty} = {};
@@ -778,19 +762,7 @@ function generateToJson(
             });
           }
         `);
-      } else {
-        chunks.push(code`
-        if (${messageProperty}) {
-            const entries = Object.entries(${messageProperty});
-            if (entries.length > 0) {
-              ${jsonProperty} = {};
-              entries.forEach(([k, v]) => {
-                ${jsonProperty}[${i}] = ${readSnippet("v")};
-              });
-            }
-          }
-        `);
-      }
+
     } else if (isRepeated(field)) {
       // Arrays might need their elements transformed
       const transformElement = readSnippet("e");
@@ -801,9 +773,8 @@ function generateToJson(
         }
       `);
     } else {
-      let emitDefaultValuesForJson = false;//ctx.options.emitDefaultValues.includes("json-methods");
       const check =
-        (isScalar(field) || isEnum(field)) && !(isWithinOneOf(field) || emitDefaultValuesForJson)
+        (isScalar(field) || isEnum(field)) && !(isWithinOneOf(field))
           ? notDefaultCheck(ctx, field, messageDesc.options, `${messageProperty}`)
           : `${messageProperty} !== undefined ${withAndMaybeCheckIsNotNull(messageProperty)}`;
 
@@ -843,7 +814,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
 
   // add a check for each incoming field
   messageDesc.field.forEach((field) => {
-    const fieldName = getFieldName(field, options);
+    const fieldName = getFieldName(field);
     const messageProperty = getPropertyAccessor("message", fieldName);
     const objectProperty = getPropertyAccessor("object", fieldName);
 
@@ -893,7 +864,6 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
         const fieldType = toTypeName(ctx, messageDesc, field);
         const i = convertFromObjectKey(ctx, messageDesc, field, "key");
 
-        if (shouldGenerateJSMapType(ctx, messageDesc, field)) {
           chunks.push(code`
             ${messageProperty} = (() => {
               const m = new Map();
@@ -905,16 +875,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
               return m;
             })();
           `);
-        } else {
-          chunks.push(code`
-            ${messageProperty} = Object.entries(${objectProperty} ?? {}).reduce<${fieldType}>((acc, [key, value]) => {
-              if (value !== undefined) {
-                acc[${i}] = ${readSnippet("value")};
-              }
-              return acc;
-            }, {});
-          `);
-        }
+
       } else {
         chunks.push(code`
           ${messageProperty} = ${objectProperty}?.map((e) => ${readSnippet("e")}) || [];
@@ -949,7 +910,7 @@ function convertFromObjectKey(
   const { keyType, keyField } = detectMapType(ctx, messageDesc, field)!;
   if (keyType.toCodeString([]) === "string") {
     return code`${variableName}`;
-  } else if (isLong(keyField) && shouldGenerateJSMapType(ctx, messageDesc, field)) {
+  } else if (isLong(keyField)) {
     return code`${ctx.utils.globalThis}.Number(${variableName})`;
   } else if (keyField.type === FieldDescriptorProto_Type.TYPE_BOOL) {
     return code`${ctx.utils.globalThis}.Boolean(${variableName})`;
@@ -967,7 +928,7 @@ function convertToObjectKey(
   const { keyType, keyField } = detectMapType(ctx, messageDesc, field)!;
   if (keyType.toCodeString([]) === "string") {
     return code`${variableName}`;
-  } else if (isLong(keyField) && shouldGenerateJSMapType(ctx, messageDesc, field)) {
+  } else if (isLong(keyField)) {
     return code`${variableName}`;
   } else if (keyField.type === FieldDescriptorProto_Type.TYPE_BOOL) {
     return code`${ctx.utils.globalThis}.String(${variableName})`;

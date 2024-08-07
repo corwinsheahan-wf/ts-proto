@@ -26,25 +26,10 @@ export enum ServiceOption {
 }
 
 export type Options = {
-  // Adds a context param to interfaces, could be useful at some point for things like tracing
-  // context: boolean;
-  // snakeToCamel: Array<"json" | "keys">;
-  // TODO: Deterimine what we'd need here
-
-  // TODO: Figure out if we need these 3, more detail/investigation needed
-  useJsonName: boolean; // TODO: See about consistency with dart proto plugin
-  useJsonWireFormat: boolean; // TODO: I think we might want this defaulted to true
-  useMapType: boolean; // TODO: We probably want this, but it's defualted to false
 };
 
 export function defaultOptions(): Options {
   return {
-    // context: false,
-    // snakeToCamel: ["json", "keys"],
-    // emitDefaultValues: [],
-    useJsonName: false,
-    useJsonWireFormat: false,
-    useMapType: false,
   };
 }
 
