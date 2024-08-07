@@ -30,7 +30,6 @@ export type Options = {
   context: boolean;
   // snakeToCamel: Array<"json" | "keys">;
   // TODO: Deterimine what we'd need here
-  forceLong: LongOption;
 
   useJsTypeOverride: boolean;
   useOptionals: boolean | "none" | "deprecatedOnly" | "messages" | "all"; // boolean is deprecated
@@ -56,7 +55,6 @@ export function defaultOptions(): Options {
     context: false,
     // snakeToCamel: ["json", "keys"],
     emitDefaultValues: [],
-    forceLong: LongOption.NUMBER, // Probably default to `string`?
     useJsTypeOverride: false,
     useOptionals: "none", // Maybe will need this?
     useDate: DateOption.DATE, // related to timestamps, not sure we'll need this at all
@@ -80,12 +78,7 @@ export function optionsFromParameter(parameter: string | undefined): Options {
     const parsed = parseParameter(parameter);
     Object.assign(options, parsed);
   }
-
-  // Treat forceLong=true as LONG
-  if ((options.forceLong as any) === true) {
-    options.forceLong = LongOption.LONG;
-  }
-
+  
   if ((options.useDate as any) === true) {
     // Treat useDate=true as DATE
     options.useDate = DateOption.DATE;

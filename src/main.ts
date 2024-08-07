@@ -13,7 +13,7 @@ import { generateGenericServiceDefinition } from "./generate-generic-service-def
 
 import { generateRpcType, generateService, generateServiceClientImpl } from "./generate-services";
 
-import { DateOption, JsonTimestampOption, LongOption, Options, ServiceOption } from "./options";
+import { DateOption, JsonTimestampOption, Options, ServiceOption } from "./options";
 import SourceInfo, { Fields } from "./sourceInfo";
 import {
   basicTypeName,
@@ -30,7 +30,6 @@ import {
   isJsTypeFieldOption,
   isListValueType,
   isLong,
-  isLongValueType,
   isMapType,
   isMessage,
   isOptionalProperty,
@@ -215,7 +214,7 @@ export function makeUtils(options: Options): Utils {
   const longs = makeLongUtils(options, bytes);
   return {
     ...bytes,
-    ...makeDeepPartial(options, longs),
+    ...makeDeepPartial(),
     ...makeObjectIdMethods(),
     ...makeTimestampMethods(options, longs, bytes),
     ...makeComparisonUtils(),
@@ -331,17 +330,14 @@ function makeByteUtils() {
   return { globalThis, bytesFromBase64, base64FromBytes };
 }
 
-function makeDeepPartial(options: Options, longs: ReturnType<typeof makeLongUtils>) {
+function makeDeepPartial() {
   const maybeExport = "export";
   // Allow passing longs as numbers or strings, nad we'll convert them
-  const maybeLong =
-    options.forceLong === LongOption.LONG ? code` : T extends ${longs.Long} ? string | number | Long ` : "";
+  const maybeLong = "";
 
   const Builtin = conditionalOutput(
     "Builtin",
-    code`type Builtin = Date | Function | Uint8Array | string | number | boolean |${
-      options.forceLong === LongOption.BIGINT ? " bigint |" : ""
-    } undefined;`,
+    code`type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;`,
   );
 
   // Based on https://github.com/sindresorhus/type-fest/pull/259
@@ -428,18 +424,6 @@ function makeTimestampMethods(
 
   let seconds: string | Code = "Math.trunc(date.getTime() / 1_000)";
   let toNumberCode: string | Code = "t.seconds";
-  const makeToNumberCode = (methodCall: string) => `t.seconds${options.useOptionals === "all" || ""}.${methodCall}`;
-
-  if (options.forceLong === LongOption.LONG) {
-    toNumberCode = makeToNumberCode("toNumber()");
-    seconds = code`${longs.numberToLong}(${seconds})`;
-  } else if (options.forceLong === LongOption.BIGINT) {
-    toNumberCode = code`${bytes.globalThis}.Number(${makeToNumberCode("toString()")})`;
-    seconds = code`BigInt(${seconds})`;
-  } else if (options.forceLong === LongOption.STRING) {
-    toNumberCode = code`${bytes.globalThis}.Number(t.seconds)`;
-    seconds = code`${seconds}.toString()`;
-  }
 
   const maybeTypeField = `$type: 'google.protobuf.Timestamp',`;
 
@@ -680,11 +664,6 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
             basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
           );
           return code`${utils.globalThis}.${cstr}(${from})`;
-        } else if (isLong(field) && options.forceLong === LongOption.LONG) {
-          const cstr = capitalize(basicTypeName(ctx, field, { keepValueType: true }).toCodeString([]));
-          return code`${cstr}.fromValue(${from})`;
-        } else if (isLong(field) && options.forceLong === LongOption.BIGINT) {
-          return code`BigInt(${from})`;
         } else {
           const cstr = capitalize(basicTypeName(ctx, field, { keepValueType: true }).toCodeString([]));
           return code`${utils.globalThis}.${cstr}(${from})`;
@@ -708,11 +687,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         return code`[...${from}]`;
       } else if (isValueType(ctx, field)) {
         const valueType = valueTypeName(ctx, field.typeName)!;
-        if (isLongValueType(field) && options.forceLong === LongOption.LONG) {
-          return code`${capitalize(valueType.toCodeString([]))}.fromValue(${from})`;
-        } else if (isLongValueType(field) && options.forceLong === LongOption.BIGINT) {
-          return code`BigInt(${from})`;
-        } else if (isBytesValueType(field)) {
+        if (isBytesValueType(field)) {
           return code`new ${capitalize(valueType.toCodeString([]))}(${from})`;
         } else {
           return code`${capitalize(valueType.toCodeString([]))}(${from})`;
@@ -724,10 +699,6 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
             // TODO Can we not copy/paste this from ^?
             if (isBytes(valueField)) {
               return code`${utils.bytesFromBase64}(${from} as string)`;
-            } else if (isLong(valueField) && options.forceLong === LongOption.LONG) {
-              return code`Long.fromValue(${from} as Long | string)`;
-            } else if (isLong(valueField) && options.forceLong === LongOption.BIGINT) {
-              return code`BigInt(${from} as string | number | bigint | boolean)`;
             } else if (isEnum(valueField)) {
               const fromJson = getEnumMethod(ctx, valueField.typeName, "FromJSON");
               return code`${fromJson}(${from})`;
@@ -918,11 +889,7 @@ function generateToJson(
           return code`${from}`;
         } else if (isTimestamp(valueType) && options.useDate === DateOption.TIMESTAMP) {
           return code`${utils.fromTimestamp}(${from}).toISOString()`;
-        } else if (isLong(valueType) && options.forceLong === LongOption.LONG) {
-          return code`${from}.toString()`;
-        } else if (isLong(valueType) && options.forceLong === LongOption.BIGINT) {
-          return code`${from}.toString()`;
-        } else if (isWholeNumber(valueType) && !(isLong(valueType) && options.forceLong === LongOption.STRING)) {
+        } else if (isWholeNumber(valueType)) {
           return code`Math.round(${from})`;
         } else if (isScalar(valueType) || isValueType(ctx, valueType)) {
           return code`${from}`;
@@ -952,11 +919,7 @@ function generateToJson(
           basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
         );
         return code`${utils.globalThis}.${cstr}(${from})`;
-      } else if (isLong(field) && options.forceLong === LongOption.LONG) {
-        return code`(${from} || ${defaultValue(ctx, field)}).toString()`;
-      } else if (isLong(field) && options.forceLong === LongOption.BIGINT) {
-        return code`${from}.toString()`;
-      } else if (isWholeNumber(field) && !(isLong(field) && options.forceLong === LongOption.STRING)) {
+      } else if (isWholeNumber(field)) {
         return code`Math.round(${from})`;
       } else {
         return code`${from}`;
@@ -1047,12 +1010,6 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
 
     const readSnippet = (from: string): Code => {
       if (
-        (isLong(field) || isLongValueType(field)) &&
-        options.forceLong === LongOption.LONG &&
-        !isJsTypeFieldOption(options, field)
-      ) {
-        return code`Long.fromValue(${from})`;
-      } else if (
         isPrimitive(field) ||
         (isTimestamp(field) &&
           (options.useDate === DateOption.DATE ||
@@ -1069,10 +1026,6 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
               return code`${from}`;
             } else if (isEnum(valueField)) {
               return code`${from} as ${valueType}`;
-            } else if (isLong(valueField) && options.forceLong === LongOption.LONG) {
-              return code`Long.fromValue(${from})`;
-            } else if (isLong(valueField) && options.forceLong === LongOption.BIGINT) {
-              return code`BigInt(${from} as string | number | bigint | boolean)`;
             } else {
               const cstr = capitalize(valueType.toCodeString([]));
               return code`${utils.globalThis}.${cstr}(${from})`;
@@ -1166,15 +1119,7 @@ function convertFromObjectKey(
   if (keyType.toCodeString([]) === "string") {
     return code`${variableName}`;
   } else if (isLong(keyField) && shouldGenerateJSMapType(ctx, messageDesc, field)) {
-    if (ctx.options.forceLong === LongOption.LONG) {
-      return code`${capitalize(keyType.toCodeString([]))}.fromValue(${variableName})`;
-    } else if (ctx.options.forceLong === LongOption.BIGINT) {
-      return code`BigInt(${variableName})`;
-    } else if (ctx.options.forceLong === LongOption.STRING) {
-      return code`${ctx.utils.globalThis}.String(${variableName})`;
-    } else {
-      return code`${ctx.utils.globalThis}.Number(${variableName})`;
-    }
+    return code`${ctx.utils.globalThis}.Number(${variableName})`;
   } else if (keyField.type === FieldDescriptorProto_Type.TYPE_BOOL) {
     return code`${ctx.utils.globalThis}.Boolean(${variableName})`;
   } else {
@@ -1192,11 +1137,7 @@ function convertToObjectKey(
   if (keyType.toCodeString([]) === "string") {
     return code`${variableName}`;
   } else if (isLong(keyField) && shouldGenerateJSMapType(ctx, messageDesc, field)) {
-    if (ctx.options.forceLong === LongOption.BIGINT) {
-      return code`${variableName}.toString()`;
-    } else {
-      return code`${variableName}`;
-    }
+    return code`${variableName}`;
   } else if (keyField.type === FieldDescriptorProto_Type.TYPE_BOOL) {
     return code`${ctx.utils.globalThis}.String(${variableName})`;
   } else {

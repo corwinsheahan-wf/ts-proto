@@ -143,14 +143,7 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
             return numericDefaultVal;
         }
       }
-
-      if (options.forceLong === LongOption.STRING) {
-        return `"${numericDefaultVal}"`;
-      } else if (options.forceLong === LongOption.BIGINT) {
-        return `BigInt("${numericDefaultVal}")`;
-      } else {
-        return numericDefaultVal;
-      }
+      return numericDefaultVal;
     case FieldDescriptorProto_Type.TYPE_BOOL:
       return useDefaultValue ? field.defaultValue : false;
     case FieldDescriptorProto_Type.TYPE_STRING:
@@ -208,11 +201,7 @@ export function notDefaultCheck(
     case FieldDescriptorProto_Type.TYPE_INT64:
     case FieldDescriptorProto_Type.TYPE_SINT64:
     case FieldDescriptorProto_Type.TYPE_SFIXED64:
-      if (options.forceLong === LongOption.LONG && !isJsTypeFieldOption(options, field)) {
-        return code`${maybeNotUndefinedAnd} !${place}.equals(${defaultValue(ctx, field)})`;
-      } else {
-        return code`${maybeNotUndefinedAnd} ${place} !== ${defaultValue(ctx, field)}`;
-      }
+      return code`${maybeNotUndefinedAnd} ${place} !== ${defaultValue(ctx, field)}`;
     case FieldDescriptorProto_Type.TYPE_BYTES:
       // todo(proto2): need to look into all the possible default values for the bytes type, and handle each one
       return code`${maybeNotUndefinedAnd} ${place}.length !== 0`;
@@ -430,16 +419,7 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
 
 function longTypeName(ctx: Context): Code {
   const { options } = ctx;
-  // if (options.forceLong === LongOption.LONG) {
-  //   return code`${utils.Long}`;
-  // } else
-  if (options.forceLong === LongOption.STRING) {
-    return code`string`;
-  } else if (options.forceLong === LongOption.BIGINT) {
-    return code`bigint`;
-  } else {
-    return code`number`;
-  }
+  return code`number`;
 }
 
 function jsTypeName(field: FieldDescriptorProto): Code | undefined {
@@ -573,8 +553,7 @@ export function shouldGenerateJSMapType(ctx: Context, message: DescriptorProto, 
     return false;
   }
   return (
-    mapType.keyField.type === FieldDescriptorProto_Type.TYPE_BOOL ||
-    (isLong(mapType.keyField) && ctx.options.forceLong === LongOption.LONG)
+    mapType.keyField.type === FieldDescriptorProto_Type.TYPE_BOOL 
   );
 }
 
@@ -652,62 +631,6 @@ export function responsePromiseOrObservable(ctx: Context, methodDesc: MethodDesc
     return responseObservable(ctx, methodDesc);
   }
   return responsePromise(ctx, methodDesc);
-}
-
-export interface BatchMethod {
-  methodDesc: MethodDescriptorProto;
-  // a ${package + service + method name} key to identify this method in caches
-  uniqueIdentifier: string;
-  singleMethodName: string;
-  inputFieldName: string;
-  inputType: Code;
-  outputFieldName: string;
-  outputType: Code;
-  mapType: boolean;
-}
-
-export function detectBatchMethod(
-  ctx: Context,
-  fileDesc: FileDescriptorProto,
-  serviceDesc: ServiceDescriptorProto,
-  methodDesc: MethodDescriptorProto,
-): BatchMethod | undefined {
-  const { typeMap } = ctx;
-  const nameMatches = methodDesc.name.startsWith("Batch");
-  const inputType = typeMap.get(methodDesc.inputType);
-  const outputType = typeMap.get(methodDesc.outputType);
-  if (nameMatches && inputType && outputType) {
-    // TODO: This might be enums?
-    const inputTypeDesc = inputType[2] as DescriptorProto;
-    const outputTypeDesc = outputType[2] as DescriptorProto;
-    if (hasSingleRepeatedField(inputTypeDesc) && hasSingleRepeatedField(outputTypeDesc)) {
-      const singleMethodName = methodDesc.name.replace("Batch", "Get");
-      const inputFieldName = inputTypeDesc.field[0].name;
-      const inputType = basicTypeName(ctx, inputTypeDesc.field[0]); // e.g. repeated string -> string
-      const outputFieldName = outputTypeDesc.field[0].name;
-      let outputType = basicTypeName(ctx, outputTypeDesc.field[0]); // e.g. repeated Entity -> Entity
-      const mapType = detectMapType(ctx, outputTypeDesc, outputTypeDesc.field[0]);
-      if (mapType) {
-        outputType = mapType.valueType;
-      }
-      const uniqueIdentifier = `${maybePrefixPackage(fileDesc, serviceDesc.name)}.${methodDesc.name}`;
-      return {
-        methodDesc: methodDesc,
-        uniqueIdentifier,
-        singleMethodName: FormattedMethodDescriptor.formatName(singleMethodName, ctx.options),
-        inputFieldName,
-        inputType,
-        outputFieldName,
-        outputType,
-        mapType: !!mapType,
-      };
-    }
-  }
-  return undefined;
-}
-
-function hasSingleRepeatedField(messageDesc: DescriptorProto): boolean {
-  return messageDesc.field.length == 1 && messageDesc.field[0].label === FieldDescriptorProto_Label.LABEL_REPEATED;
 }
 
 export function isJsTypeFieldOption(options: Options, field: FieldDescriptorProto): boolean {
