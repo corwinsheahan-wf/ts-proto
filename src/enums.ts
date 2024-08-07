@@ -14,7 +14,6 @@ export function generateEnum(
   enumDesc: EnumDescriptorProto,
   sourceInfo: SourceInfo,
 ): Code {
-  const { options } = ctx;
   const chunks: Code[] = [];
   let unrecognizedEnum: UnrecognizedEnum = { present: false };
 
@@ -47,7 +46,7 @@ export function generateEnumFromJson(
   enumDesc: EnumDescriptorProto,
   unrecognizedEnum: UnrecognizedEnum,
 ): Code {
-  const { options, utils } = ctx;
+  const { utils } = ctx;
   const chunks: Code[] = [];
 
   const functionName = uncapitalize(fullName) + "FromJSON";
@@ -82,7 +81,7 @@ export function generateEnumToJson(
   enumDesc: EnumDescriptorProto,
   unrecognizedEnum: UnrecognizedEnum,
 ): Code {
-  const { options, utils } = ctx;
+  const { utils } = ctx;
 
   const chunks: Code[] = [];
 
@@ -114,7 +113,7 @@ export function generateEnumToNumber(
   enumDesc: EnumDescriptorProto,
   unrecognizedEnum: UnrecognizedEnum,
 ): Code {
-  const { options, utils } = ctx;
+  const { utils } = ctx;
 
   const chunks: Code[] = [];
 

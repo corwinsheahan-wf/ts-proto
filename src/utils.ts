@@ -9,20 +9,14 @@ import {
 } from "ts-proto-descriptors";
 import ReadStream = NodeJS.ReadStream;
 import { SourceDescription } from "./sourceInfo";
-import { Options, ServiceOption } from "./options";
-import { maybeSnakeToCamel, snakeToCamel } from "./case";
 import { camelCase as camelCaseAnything } from "case-anything";
-
-export function protoFilesToGenerate(request: CodeGeneratorRequest): FileDescriptorProto[] {
-  return request.protoFile.filter((f) => request.fileToGenerate.includes(f.name));
-}
 
 type PackageTree = {
   index: string;
   chunks: Code[];
   leaves: { [k: string]: PackageTree };
 };
-export function generateIndexFiles(files: FileDescriptorProto[], options: Options): [string, Code][] {
+export function generateIndexFiles(files: FileDescriptorProto[]): [string, Code][] {
   const packageTree: PackageTree = {
     index: "index.ts",
     leaves: {},
@@ -166,17 +160,15 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
   public serverStreaming: boolean;
 
   private original: MethodDescriptorProto;
-  private ctxOptions: Options;
   /**
    * The name of this method with formatting applied according to the `Options` object passed to the constructor.
    * Automatically updates to any changes to the `Options` or `name` of this object
    */
   public get formattedName() {
-    return FormattedMethodDescriptor.formatName(this.name, this.ctxOptions);
+    return FormattedMethodDescriptor.formatName(this.name);
   }
 
-  constructor(src: MethodDescriptorProto, options: Options) {
-    this.ctxOptions = options;
+  constructor(src: MethodDescriptorProto) {
     this.original = src;
     this.name = src.name;
     this.inputType = src.inputType;
@@ -200,7 +192,7 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
    * @param options The options object containing rules to apply
    * @returns The formatted method name
    */
-  public static formatName(methodName: string, options: Options) {
+  public static formatName(methodName: string) {
     return camelCaseAnything(methodName);
   }
 }
@@ -246,7 +238,7 @@ export function impFile(spec: string) {
   return imp(`${spec}`);
 }
 
-export function impProto(options: Options, module: string, type: string): Import {
+export function impProto(module: string, type: string): Import {
   const prefix = "";
   const protoFile = `${module}.proto`;
   // if (options.M[protoFile]) {

@@ -9,7 +9,7 @@ import { getVersions, readToBuffer } from "./utils";
 import { generateFile, makeUtils } from "./main";
 import { createTypeMap } from "./types";
 import { BaseContext } from "./context";
-import { getTsPoetOpts, optionsFromParameter } from "./options";
+import { getTsPoetOpts } from "./options";
 import { generateTypeRegistry } from "./generate-type-registry";
 
 // this would be the plugin called by the protoc compiler
@@ -19,10 +19,9 @@ async function main() {
 
   const { protocVersion, tsProtoVersion } = await getVersions(request);
 
-  const options = optionsFromParameter(request.parameter);
-  const typeMap = createTypeMap(request, options);
-  const utils = makeUtils(options);
-  const ctx: BaseContext = { typeMap, options, utils };
+  const typeMap = createTypeMap(request);
+  const utils = makeUtils();
+  const ctx: BaseContext = { typeMap, utils };
 
   let filesToGenerate: FileDescriptorProto[];
 
@@ -46,7 +45,7 @@ async function main() {
         throw Error("Only proto3 files are supported");
       }
       const [path, code] = generateFile({ ...ctx }, file);
-      const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion, file.name), path });
+      const content = code.toString({ ...getTsPoetOpts(tsProtoVersion, protocVersion, file.name), path });
       return { name: path, content };
     }),
   );
@@ -54,7 +53,7 @@ async function main() {
   const path = "typeRegistry.pb.ts";
   const code = generateTypeRegistry(ctx);
 
-  const content = code.toString({ ...getTsPoetOpts(options, tsProtoVersion, protocVersion), path });
+  const content = code.toString({ ...getTsPoetOpts(tsProtoVersion, protocVersion), path });
   files.push({ name: path, content });
 
   const response = CodeGeneratorResponse.fromPartial({

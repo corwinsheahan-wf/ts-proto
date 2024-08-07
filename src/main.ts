@@ -13,7 +13,6 @@ import { generateGenericServiceDefinition } from "./generate-generic-service-def
 
 import { generateRpcType, generateService, generateServiceClientImpl } from "./generate-services";
 
-import { DateOption, JsonTimestampOption, Options, ServiceOption } from "./options";
 import SourceInfo, { Fields } from "./sourceInfo";
 import {
   basicTypeName,
@@ -26,7 +25,6 @@ import {
   isEnum,
   isFieldMaskType,
   isFieldMaskTypeName,
-  isJsTypeFieldOption,
   isListValueType,
   isLong,
   isMapType,
@@ -41,7 +39,6 @@ import {
   isWholeNumber,
   isWithinOneOf,
   notDefaultCheck,
-  shouldGenerateJSMapType,
   toTypeName,
   valueTypeName,
 } from "./types";
@@ -62,7 +59,7 @@ import {
 import { visit, visitServices } from "./visit";
 
 export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [string, Code] {
-  const { options, utils } = ctx;
+  const {  utils } = ctx;
 
   // Google's protofiles are organized like Java, where package == the folder the file
   // is in, and file == a specific service within the package. I.e. you can have multiple
@@ -92,7 +89,7 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   // Apply formatting to methods here, so they propagate globally
   for (let svc of fileDesc.service) {
     for (let i = 0; i < svc.method.length; i++) {
-      svc.method[i] = new FormattedMethodDescriptor(svc.method[i], options);
+      svc.method[i] = new FormattedMethodDescriptor(svc.method[i]);
     }
   }
 
@@ -105,7 +102,6 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
         generateInterfaceDeclaration(ctx, fullName, message, sInfo, maybePrefixPackage(fileDesc, fullProtoTypeName)),
       );
     },
-    options,
     (fullName, enumDesc, sInfo) => {
       chunks.push(generateEnum(ctx, fullName, enumDesc, sInfo));
     },
@@ -140,23 +136,13 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
             ${messageTypeRegistry}.set(${fullName}.$type, ${fullName});
           `);
     },
-    options,
   );
   let hasStreamingMethods = false;
 
   visitServices(fileDesc, sourceInfo, (serviceDesc, sInfo) => {
-    // FIXME: We can probably delete the service definitions altogether if we modify the base service impl
-    const uniqueServices = [...new Set(["generic-definitions", "default"])].sort();
-    uniqueServices.forEach((outputService) => {
-      if (outputService === ServiceOption.GENERIC) {
-        chunks.push(generateGenericServiceDefinition(ctx, fileDesc, sInfo, serviceDesc));
-      } else if (outputService === ServiceOption.DEFAULT) {
-        // This service could be Twirp or grpc-web or JSON (maybe). So far all of their
-        // interfaces are fairly similar so we share the same service interface.
-        chunks.push(generateService(ctx, fileDesc, sInfo, serviceDesc));
-        chunks.push(generateServiceClientImpl(ctx, fileDesc, serviceDesc));
-      }
-    });
+    chunks.push(generateService(ctx, fileDesc, sInfo, serviceDesc));
+    chunks.push(generateServiceClientImpl(ctx, fileDesc, serviceDesc));
+    chunks.push(generateGenericServiceDefinition(ctx, fileDesc, sInfo, serviceDesc));
 
     serviceDesc.method.forEach((methodDesc, _index) => {
       if (methodDesc.serverStreaming || methodDesc.clientStreaming) {
@@ -208,14 +194,14 @@ export type Utils = ReturnType<typeof makeDeepPartial> &
   ReturnType<typeof makeComparisonUtils>;
 
 /** These are runtime utility methods used by the generated code. */
-export function makeUtils(options: Options): Utils {
+export function makeUtils(): Utils {
   const bytes = makeByteUtils();
   // const longs = makeLongUtils(options, bytes);
   return {
     ...bytes,
     ...makeDeepPartial(),
     ...makeObjectIdMethods(),
-    ...makeTimestampMethods(options, bytes),
+    ...makeTimestampMethods(bytes),
     ...makeComparisonUtils(),
   };
 }
@@ -349,11 +335,10 @@ function makeObjectIdMethods() {
 }
 
 function makeTimestampMethods(
-  options: Options,
   // longs: ReturnType<typeof makeLongUtils>,
   bytes: ReturnType<typeof makeByteUtils>,
 ) {
-  const Timestamp = impProto(options, "google/protobuf/timestamp", "Timestamp");
+  const Timestamp = impProto("google/protobuf/timestamp", "Timestamp");
 
   let seconds: string | Code = "Math.trunc(date.getTime() / 1_000)";
   let toNumberCode: string | Code = "t.seconds";
@@ -428,7 +413,6 @@ function generateInterfaceDeclaration(
   sourceInfo: SourceInfo,
   fullTypeName: string,
 ): Code {
-  const { options } = ctx;
   const chunks: Code[] = [];
 
   addComment(sourceInfo, chunks, messageDesc.options?.deprecated);
@@ -441,7 +425,7 @@ function generateInterfaceDeclaration(
     const info = sourceInfo.lookup(Fields.message.field, index);
     addComment(info, chunks, fieldDesc.options?.deprecated);
     const fieldKey = safeAccessor(getFieldName(fieldDesc));
-    const isOptional = isOptionalProperty(fieldDesc, messageDesc.options, options);
+    const isOptional = isOptionalProperty(fieldDesc, messageDesc.options);
     const type = toTypeName(ctx, messageDesc, fieldDesc, isOptional);
     chunks.push(code`${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
   });
@@ -457,7 +441,6 @@ function generateBaseInstanceFactory(
   messageDesc: DescriptorProto,
   fullTypeName: string,
 ): Code {
-  const { options } = ctx;
   const fields: Code[] = [];
 
   for (const field of messageDesc.field) {
@@ -489,7 +472,7 @@ function generateBaseInstanceFactory(
  * a few special cases for https://developers.google.com/protocol-buffers/docs/proto3#json.
  * */
 function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, messageDesc: DescriptorProto): Code {
-  const { options, utils } = ctx;
+  const { utils } = ctx;
   const chunks: Code[] = [];
 
   // create the basic function declaration
@@ -527,12 +510,12 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         // Convert primitives using the String(value)/Number(value)/bytesFromBase64(value)
         if (isBytes(field)) {
           return code`${utils.bytesFromBase64}(${from})`;
-        } else if (isLong(field) && isJsTypeFieldOption(options, field)) {
-          const fieldType = field.type;
-          const cstr = capitalize(
-            basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
-          );
-          return code`${utils.globalThis}.${cstr}(${from})`;
+        // } else if (isLong(field) && isJsTypeFieldOption(field)) {
+        //   const fieldType = field.type;
+        //   const cstr = capitalize(
+        //     basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
+        //   );
+        //   return code`${utils.globalThis}.${cstr}(${from})`;
         } else {
           const cstr = capitalize(basicTypeName(ctx, field, { keepValueType: true }).toCodeString([]));
           return code`${utils.globalThis}.${cstr}(${from})`;
@@ -676,7 +659,7 @@ function generateToJson(
   fullProtobufTypeName: string,
   messageDesc: DescriptorProto,
 ): Code {
-  const { options, utils, typeMap } = ctx;
+  const { utils, typeMap } = ctx;
   const chunks: Code[] = [];
 
   const canonicalToJson = generateCanonicalToJson(fullName, fullProtobufTypeName);
@@ -734,15 +717,15 @@ function generateToJson(
         return code`${type}.toJSON(${from})`;
       } else if (isBytes(field)) {
         return code`${utils.base64FromBytes}(${from})`;
-      } else if (isLong(field) && isJsTypeFieldOption(options, field)) {
-        const fieldType = field.type;
-        if (!fieldType) {
-          return code`${from}`;
-        }
-        const cstr = capitalize(
-          basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
-        );
-        return code`${utils.globalThis}.${cstr}(${from})`;
+      // } else if (isLong(field) && isJsTypeFieldOption(field)) {
+      //   const fieldType = field.type;
+      //   if (!fieldType) {
+      //     return code`${from}`;
+      //   }
+      //   const cstr = capitalize(
+      //     basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
+      //   );
+      //   return code`${utils.globalThis}.${cstr}(${from})`;
       } else if (isWholeNumber(field)) {
         return code`Math.round(${from})`;
       } else {
@@ -791,7 +774,7 @@ function generateToJson(
 }
 
 function generateFromPartial(ctx: Context, fullName: string, messageDesc: DescriptorProto): Code {
-  const { options, utils } = ctx;
+  const { utils } = ctx;
   const chunks: Code[] = [];
 
   // create the create function definition

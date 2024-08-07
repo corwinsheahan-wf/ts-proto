@@ -5,7 +5,6 @@ import {
   ServiceDescriptorProto,
 } from "ts-proto-descriptors";
 import SourceInfo, { Fields } from "./sourceInfo";
-import { Options } from "./options";
 import { maybeSnakeToCamel } from "./case";
 
 type MessageVisitor = (
@@ -26,7 +25,6 @@ export function visit(
   proto: FileDescriptorProto | DescriptorProto,
   sourceInfo: SourceInfo,
   messageFn: MessageVisitor,
-  options: Options,
   enumFn: EnumVisitor = () => {},
   tsPrefix: string = "",
   protoPrefix: string = "",
@@ -54,7 +52,7 @@ export function visit(
     const nestedSourceInfo = sourceInfo.open(childType, index);
     messageFn(tsFullName, message, nestedSourceInfo, protoFullName);
     const delim = "";
-    visit(message, nestedSourceInfo, messageFn, options, enumFn, tsFullName + delim, protoFullName + ".");
+    visit(message, nestedSourceInfo, messageFn, enumFn, tsFullName + delim, protoFullName + ".");
   });
 }
 

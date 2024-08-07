@@ -14,7 +14,6 @@ import {
 } from "ts-proto-descriptors";
 import { uncapitalize } from "./case";
 import { Context } from "./context";
-import { DateOption, LongOption, Options } from "./options";
 import SourceInfo from "./sourceInfo";
 import {
   FormattedMethodDescriptor,
@@ -46,8 +45,6 @@ export function basicTypeName(
   field: FieldDescriptorProto,
   typeOptions: { keepValueType?: boolean } = {},
 ): Code {
-  const { options } = ctx;
-
   const fieldType = field.type;
 
   switch (fieldType) {
@@ -64,10 +61,7 @@ export function basicTypeName(
     case FieldDescriptorProto_Type.TYPE_SINT64:
     case FieldDescriptorProto_Type.TYPE_FIXED64:
     case FieldDescriptorProto_Type.TYPE_SFIXED64:
-      return isJsTypeFieldOption(options, field)
-        ? jsTypeName(field) ?? longTypeName(ctx)
-        : // this handles 2^53, Long is only needed for 2^64; this is effectively pbjs's forceNumber
-          longTypeName(ctx);
+      return longTypeName(ctx);
     case FieldDescriptorProto_Type.TYPE_BOOL:
       return code`boolean`;
     case FieldDescriptorProto_Type.TYPE_STRING:
@@ -84,7 +78,7 @@ export function basicTypeName(
 }
 
 export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
-  const { typeMap, options } = ctx;
+  const { typeMap } = ctx;
 
   const useDefaultValue = false;
   const numericDefaultVal = useDefaultValue ? field.defaultValue : 0;
@@ -114,14 +108,6 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
     case FieldDescriptorProto_Type.TYPE_FIXED64:
     case FieldDescriptorProto_Type.TYPE_SINT64:
     case FieldDescriptorProto_Type.TYPE_SFIXED64:
-      if (isJsTypeFieldOption(options, field)) {
-        switch (field.options!.jstype) {
-          case FieldOptions_JSType.JS_STRING:
-            return `"${numericDefaultVal}"`;
-          case FieldOptions_JSType.JS_NUMBER:
-            return numericDefaultVal;
-        }
-      }
       return numericDefaultVal;
     case FieldDescriptorProto_Type.TYPE_BOOL:
       return useDefaultValue ? field.defaultValue : false;
@@ -143,9 +129,9 @@ export function notDefaultCheck(
   messageOptions: MessageOptions | undefined,
   place: string,
 ): Code {
-  const { typeMap, options } = ctx;
+  const { typeMap } = ctx;
 
-  const isOptional = isOptionalProperty(field, messageOptions, options);
+  const isOptional = isOptionalProperty(field, messageOptions);
 
   const maybeNotUndefinedAnd = isOptional ? `${place} !== undefined ${withAndMaybeCheckIsNotNull(place)} &&` : "";
 
@@ -193,7 +179,7 @@ export function notDefaultCheck(
 export type TypeMap = Map<string, [string, string, DescriptorProto | EnumDescriptorProto]>;
 
 /** Scans all of the proto files in `request` and builds a map of proto typeName -> TS module/name. */
-export function createTypeMap(request: CodeGeneratorRequest, options: Options): TypeMap {
+export function createTypeMap(request: CodeGeneratorRequest): TypeMap {
   const typeMap: TypeMap = new Map();
   for (const file of request.protoFile) {
     // We assume a file.name of google/protobuf/wrappers.proto --> a module path of google/protobuf/wrapper.ts
@@ -209,7 +195,7 @@ export function createTypeMap(request: CodeGeneratorRequest, options: Options): 
       const prefix = file.package.length === 0 ? "" : `.${file.package}`;
       typeMap.set(`${prefix}.${protoFullName}`, [moduleName, tsFullName, desc]);
     }
-    visit(file, SourceInfo.empty(), saveMapping, options, saveMapping);
+    visit(file, SourceInfo.empty(), saveMapping, saveMapping);
   }
   return typeMap;
 }
@@ -248,7 +234,6 @@ export function isScalar(field: FieldDescriptorProto): boolean {
 export function isOptionalProperty(
   field: FieldDescriptorProto,
   messageOptions: MessageOptions | undefined,
-  options: Options,
 ): boolean {
   return field.proto3Optional;
   // const optionalMessages = false
@@ -397,7 +382,6 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
 }
 
 function longTypeName(ctx: Context): Code {
-  const { options } = ctx;
   return code`number`;
 }
 
@@ -415,7 +399,7 @@ export function messageToTypeName(
   protoType: string,
   typeOptions: { keepValueType?: boolean; repeated?: boolean } = {},
 ): Code {
-  const { options, typeMap } = ctx;
+  const { typeMap } = ctx;
   // Watch for the wrapper types `.google.protobuf.*Value`. If we're mapping
   // them to basic built-in types, we union the type with undefined to
   // indicate the value is optional. Exceptions:
@@ -433,7 +417,7 @@ export function messageToTypeName(
   }
 
   const [module, type] = toModuleAndType(typeMap, protoType);
-  return code`${impProto(options, module, type)}`;
+  return code`${impProto(module, type)}`;
 }
 
 /** Breaks `.some_proto_namespace.Some.Message` into `['some_proto_namespace', 'Some_Message', Descriptor]. */
@@ -443,7 +427,7 @@ function toModuleAndType(typeMap: TypeMap, protoType: string): [string, string, 
 
 export function getEnumMethod(ctx: Context, enumProtoType: string, methodSuffix: string): Import {
   const [module, type] = toModuleAndType(ctx.typeMap, enumProtoType);
-  return impProto(ctx.options, module, `${uncapitalize(type)}${methodSuffix}`);
+  return impProto(module, `${uncapitalize(type)}${methodSuffix}`);
 }
 
 /** Return the TypeName for any field (primitive/message/etc.) as exposed in the interface. */
@@ -490,12 +474,10 @@ export function toTypeName(
   // When oneof=unions, we generate a single property for the entire `oneof`
   // clause, spelling each option out inside a large type union. No need for
   // union with `undefined` here, either.
-  const { options } = ctx;
   return finalize(
     type,
     (!isWithinOneOf(field) &&
       isMessage(field)) ||
-      // (isWithinOneOf(field) && options.oneof === OneofOption.PROPERTIES) ||
       (isWithinOneOf(field) && field.proto3Optional) ||
       ensureOptional,
   );
@@ -594,16 +576,8 @@ export function responseObservable(ctx: Context, methodDesc: MethodDescriptorPro
 }
 
 export function responsePromiseOrObservable(ctx: Context, methodDesc: MethodDescriptorProto): Code {
-  const { options } = ctx;
   if (methodDesc.serverStreaming) {
     return responseObservable(ctx, methodDesc);
   }
   return responsePromise(ctx, methodDesc);
-}
-
-export function isJsTypeFieldOption(options: Options, field: FieldDescriptorProto): boolean {
-  return false; //(
-  //   options.useJsTypeOverride &&
-  //   (field.options?.jstype === FieldOptions_JSType.JS_NUMBER || field.options?.jstype === FieldOptions_JSType.JS_STRING)
-  // );
 }

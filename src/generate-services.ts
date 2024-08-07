@@ -15,7 +15,6 @@ export function generateService(
   sourceInfo: SourceInfo,
   serviceDesc: ServiceDescriptorProto,
 ): Code {
-  const { options } = ctx;
   const chunks: Code[] = [];
 
   addComment(sourceInfo, chunks, serviceDesc.options?.deprecated);
@@ -98,7 +97,6 @@ export function generateServiceClientImpl(
   fileDesc: FileDescriptorProto,
   serviceDesc: ServiceDescriptorProto,
 ): Code {
-  const { options } = ctx;
   const chunks: Code[] = [];
 
   // Determine information about the service.
@@ -150,7 +148,6 @@ export function generateServiceClientImpl(
  * types.
  */
 export function generateRpcType(ctx: Context, hasStreamingMethods: boolean): Code {
-  const { options } = ctx;
   const messageType = impFile("MessageType@./typeRegistry.pb");
 
   // const outputGenericClient = options.outputClientImpl === "generic";

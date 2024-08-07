@@ -1,5 +1,3 @@
-import { Options } from "./options";
-
 /** Converts `key` to TS/JS camel-case idiom, unless overridden not to. */
 export function maybeSnakeToCamel(key: string): string {
   // if (options.snakeToCamel.includes("keys") && key.includes("_")) {
