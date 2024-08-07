@@ -27,12 +27,10 @@ export enum ServiceOption {
 
 export type Options = {
   // Adds a context param to interfaces, could be useful at some point for things like tracing
-  context: boolean;
+  // context: boolean;
   // snakeToCamel: Array<"json" | "keys">;
   // TODO: Deterimine what we'd need here
 
-  useJsTypeOverride: boolean;
-  useOptionals: boolean | "none" | "deprecatedOnly" | "messages" | "all"; // boolean is deprecated
   emitDefaultValues: Array<"json-methods">;
   useDate: DateOption;
   useJsonTimestamp: JsonTimestampOption;
@@ -52,11 +50,9 @@ export type Options = {
 
 export function defaultOptions(): Options {
   return {
-    context: false,
+    // context: false,
     // snakeToCamel: ["json", "keys"],
     emitDefaultValues: [],
-    useJsTypeOverride: false,
-    useOptionals: "none", // Maybe will need this?
     useDate: DateOption.DATE, // related to timestamps, not sure we'll need this at all
     useJsonTimestamp: JsonTimestampOption.RFC3339,
     esModuleInterop: false, // more investigation, tied to `importSuffix`
@@ -95,11 +91,11 @@ export function optionsFromParameter(parameter: string | undefined): Options {
   //   options.snakeToCamel = (options.snakeToCamel as string).split("_") as any;
   // }
 
-  if ((options.emitDefaultValues as any) === "json-methods") {
-    options.emitDefaultValues = ["json-methods"];
-  } else {
-    options.emitDefaultValues = [];
-  }
+  // if ((options.emitDefaultValues as any) === "json-methods") {
+  //   options.emitDefaultValues = ["json-methods"];
+  // } else {
+  //   options.emitDefaultValues = [];
+  // }
 
   if (options.useJsonWireFormat) {
     options.useDate = DateOption.STRING;

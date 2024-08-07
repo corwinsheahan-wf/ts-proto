@@ -48,7 +48,7 @@ export function basicTypeName(
 ): Code {
   const { options } = ctx;
 
-  const fieldType = getFieldOptionsJsType(field, ctx.options) ?? field.type;
+  const fieldType = field.type;
 
   switch (fieldType) {
     case FieldDescriptorProto_Type.TYPE_DOUBLE:
@@ -80,27 +80,6 @@ export function basicTypeName(
       return messageToTypeName(ctx, field.typeName, { ...typeOptions, repeated: isRepeated(field) });
     default:
       return code`${field.typeName}`;
-  }
-}
-
-export function getFieldOptionsJsType(
-  field: FieldDescriptorProto,
-  options: Options,
-): FieldDescriptorProto_Type | undefined {
-  if (!options.useJsTypeOverride || field.options?.jstype === undefined) {
-    return;
-  }
-
-  switch (field.options.jstype) {
-    case FieldOptions_JSType.JS_STRING:
-      return FieldDescriptorProto_Type.TYPE_STRING;
-    case FieldOptions_JSType.JS_NUMBER:
-      return FieldDescriptorProto_Type.TYPE_INT64;
-    // In the case of JS_NORMAL, we don't want to override the type, so we return
-    case FieldOptions_JSType.JS_NORMAL:
-    // In the case of UNRECOGNIZED, we assume default behavior and we don't want to override the type, so we return
-    case FieldOptions_JSType.UNRECOGNIZED:
-      return;
   }
 }
 
@@ -271,20 +250,20 @@ export function isOptionalProperty(
   messageOptions: MessageOptions | undefined,
   options: Options,
 ): boolean {
-  const optionalMessages =
-    options.useOptionals === true || options.useOptionals === "messages" || options.useOptionals === "all";
-  const optionalAll = options.useOptionals === "all";
-  const deprecatedOnly = options.useOptionals === "deprecatedOnly" && field.options && field.options.deprecated;
-
-  return (
-    (optionalMessages && isMessage(field) && !isRepeated(field)) ||
-    ((optionalAll || deprecatedOnly) && !messageOptions?.mapEntry) ||
-    // (options.noDefaultsForOptionals && !isRepeated(field) && (isScalar(field) || isEnum(field))) ||
-    // file is proto2, we have enabled proto2 optionals, and the field itself is optional
-    // don't bother verifying that oneof is not union. union oneofs generate their own properties.
-    isWithinOneOf(field) ||
-    field.proto3Optional
-  );
+  return field.proto3Optional;
+  // const optionalMessages = false
+  // //   options.useOptionals === true || options.useOptionals === "messages" || options.useOptionals === "all";
+  // const optionalAll = false; //options.useOptionals === "all";
+  // const deprecatedOnly = false;//options.useOptionals === "deprecatedOnly" && field.options && field.options.deprecated;
+  //
+  // return (
+  //   (optionalMessages && isMessage(field) && !isRepeated(field)) ||
+  //   ((optionalAll || deprecatedOnly) && !messageOptions?.mapEntry) ||
+  //   // (options.noDefaultsForOptionals && !isRepeated(field) && (isScalar(field) || isEnum(field))) ||
+  //   // file is proto2, we have enabled proto2 optionals, and the field itself is optional
+  //   // don't bother verifying that oneof is not union. union oneofs generate their own properties.
+  //   isWithinOneOf(field) ||
+  // );
 }
 
 /** This includes all scalars, enums and the [groups type](https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/DescriptorProtos.FieldDescriptorProto.Type.html#TYPE_GROUP) */
@@ -487,7 +466,7 @@ export function toTypeName(
     return type;
   }
 
-  const fieldType = getFieldOptionsJsType(field, ctx.options) ?? field.type;
+  const fieldType = field.type;
 
   const type = basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: false });
 
@@ -524,8 +503,7 @@ export function toTypeName(
   return finalize(
     type,
     (!isWithinOneOf(field) &&
-      isMessage(field) &&
-      (options.useOptionals === false || options.useOptionals === "none")) ||
+      isMessage(field)) ||
       // (isWithinOneOf(field) && options.oneof === OneofOption.PROPERTIES) ||
       (isWithinOneOf(field) && field.proto3Optional) ||
       ensureOptional,
@@ -634,8 +612,8 @@ export function responsePromiseOrObservable(ctx: Context, methodDesc: MethodDesc
 }
 
 export function isJsTypeFieldOption(options: Options, field: FieldDescriptorProto): boolean {
-  return (
-    options.useJsTypeOverride &&
-    (field.options?.jstype === FieldOptions_JSType.JS_NUMBER || field.options?.jstype === FieldOptions_JSType.JS_STRING)
-  );
+  return false; //(
+  //   options.useJsTypeOverride &&
+  //   (field.options?.jstype === FieldOptions_JSType.JS_NUMBER || field.options?.jstype === FieldOptions_JSType.JS_STRING)
+  // );
 }

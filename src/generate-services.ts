@@ -110,11 +110,11 @@ export function generateServiceClientImpl(
   chunks.push(code`export const ${serviceNameConst} = "${serviceName}";`);
 
   // Define the FooServiceImpl class
-  const i = options.context ? `${name}<Context>` : name;
+  const i = name;
   chunks.push(code`export class ${name}ClientImpl implements ${def(i)} {`);
 
   // Create the constructor(rpc: Rpc)
-  const rpcType = options.context ? "Rpc<Context>" : "Rpc";
+  const rpcType = "Rpc";
   chunks.push(code`private readonly rpc: ${rpcType};`);
   chunks.push(code`private readonly service: string;`);
   chunks.push(code`constructor(rpc: ${rpcType}, opts?: {service?: string}) {`);

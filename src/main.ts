@@ -20,7 +20,6 @@ import {
   defaultValue,
   detectMapType,
   getEnumMethod,
-  getFieldOptionsJsType,
   isAnyValueType,
   isBytes,
   isBytesValueType,
@@ -659,7 +658,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         if (isBytes(field)) {
           return code`${utils.bytesFromBase64}(${from})`;
         } else if (isLong(field) && isJsTypeFieldOption(options, field)) {
-          const fieldType = getFieldOptionsJsType(field, ctx.options) ?? field.type;
+          const fieldType = field.type;
           const cstr = capitalize(
             basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
           );
@@ -813,11 +812,13 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
 function generateCanonicalToJson(
   fullName: string,
   fullProtobufTypeName: string,
-  { useOptionals }: Options,
 ): Code | undefined {
   if (isFieldMaskTypeName(fullProtobufTypeName)) {
-    const returnType = useOptionals === "all" ? `string | ${nullOrUndefined()}` : "string";
-    const pathModifier = useOptionals === "all" ? "?" : "";
+    // TODO: Do we want optionals?
+    // const returnType = useOptionals === "all" ? `string | ${nullOrUndefined()}` : "string";
+    const returnType = "string";
+    // const pathModifier = useOptionals === "all" ? "?" : "";
+    const pathModifier = "";
 
     return code`
     toJSON(message: ${fullName}): ${returnType} {
@@ -837,7 +838,7 @@ function generateToJson(
   const { options, utils, typeMap } = ctx;
   const chunks: Code[] = [];
 
-  const canonicalToJson = generateCanonicalToJson(fullName, fullProtobufTypeName, options);
+  const canonicalToJson = generateCanonicalToJson(fullName, fullProtobufTypeName);
   if (canonicalToJson) {
     chunks.push(canonicalToJson);
     return joinCode(chunks, { on: "\n" });
@@ -910,7 +911,7 @@ function generateToJson(
       } else if (isBytes(field)) {
         return code`${utils.base64FromBytes}(${from})`;
       } else if (isLong(field) && isJsTypeFieldOption(options, field)) {
-        const fieldType = getFieldOptionsJsType(field, ctx.options) ?? field.type;
+        const fieldType = field.type;
         if (!fieldType) {
           return code`${from}`;
         }
