@@ -428,33 +428,7 @@ function makeTimestampMethods(
 
   const toTimestamp = conditionalOutput(
     "toTimestamp",
-    options.useDate === DateOption.STRING
-      ? code`
-          function toTimestamp(dateStr: string): ${Timestamp} {
-            const date = new ${bytes.globalThis}.Date(dateStr);
-            const seconds = ${seconds};
-            const nanos = (date.getTime() % 1_000) * 1_000_000;
-            return { ${maybeTypeField} seconds, nanos };
-          }
-        `
-      : options.useDate === DateOption.STRING_NANO
-      ? code`
-          function toTimestamp(dateStr: string): ${Timestamp} {
-            const nanoDate = new ${NanoDate}(dateStr);
-
-            const date = {
-              getTime: (): number => nanoDate.valueOf(),
-            } as const;
-            const seconds = ${seconds};
-
-            let nanos = nanoDate.getMilliseconds() * 1_000_000;
-            nanos += nanoDate.getMicroseconds() * 1_000;
-            nanos += nanoDate.getNanoseconds();
-
-            return { ${maybeTypeField} seconds, nanos };
-          }
-        `
-      : code`
+  code`
           function toTimestamp(date: Date): ${Timestamp} {
             const seconds = ${seconds};
             const nanos = (date.getTime() % 1_000) * 1_000_000;
@@ -465,31 +439,7 @@ function makeTimestampMethods(
 
   const fromTimestamp = conditionalOutput(
     "fromTimestamp",
-    options.useDate === DateOption.STRING
-      ? code`
-          function fromTimestamp(t: ${Timestamp}): string {
-            let millis = (${toNumberCode} || 0) * 1_000;
-            millis += (t.nanos || 0) / 1_000_000;
-            return new ${bytes.globalThis}.Date(millis).toISOString();
-          }
-        `
-      : options.useDate === DateOption.STRING_NANO
-      ? code`
-          function fromTimestamp(t: ${Timestamp}): string {
-            const seconds = ${toNumberCode} || 0;
-            const nanos = (t.nanos || 0) % 1_000;
-            const micros = Math.trunc(((t.nanos || 0) % 1_000_000) / 1_000)
-            let millis = seconds * 1_000;
-            millis += Math.trunc((t.nanos || 0) / 1_000_000);
-
-            const nanoDate = new ${NanoDate}(millis);
-            nanoDate.setMicroseconds(micros);
-            nanoDate.setNanoseconds(nanos);
-
-            return nanoDate.toISOStringFull();
-          }
-        `
-      : code`
+  code`
           function fromTimestamp(t: ${Timestamp}): Date {
             let millis = (${toNumberCode} || 0) * 1_000;
             millis += (t.nanos || 0) / 1_000_000;
@@ -500,8 +450,7 @@ function makeTimestampMethods(
 
   const fromJsonTimestamp = conditionalOutput(
     "fromJsonTimestamp",
-    options.useDate === DateOption.DATE
-      ? code`
+          code`
         function fromJsonTimestamp(o: any): Date {
           if (o instanceof ${bytes.globalThis}.Date) {
             return o;
@@ -512,17 +461,6 @@ function makeTimestampMethods(
           }
         }
       `
-      : code`
-        function fromJsonTimestamp(o: any): Timestamp {
-          if (o instanceof ${bytes.globalThis}.Date) {
-            return ${toTimestamp}(o);
-          } else if (typeof o === "string") {
-            return ${toTimestamp}(new ${bytes.globalThis}.Date(o));
-          } else {
-            return Timestamp.fromJSON(o);
-          }
-        }
-      `,
   );
 
   return { toTimestamp, fromTimestamp, fromJsonTimestamp };
@@ -667,15 +605,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
           const cstr = capitalize(basicTypeName(ctx, field, { keepValueType: true }).toCodeString([]));
           return code`${utils.globalThis}.${cstr}(${from})`;
         }
-      } else if (
-        isTimestamp(field) &&
-        (options.useDate === DateOption.STRING || options.useDate === DateOption.STRING_NANO)
-      ) {
-        return code`${utils.globalThis}.String(${from})`;
-      } else if (
-        isTimestamp(field) &&
-        (options.useDate === DateOption.DATE || options.useDate === DateOption.TIMESTAMP)
-      ) {
+      } else if (isTimestamp(field)) {
         return code`${utils.fromJsonTimestamp}(${from})`;
       } else if (isAnyValueType(field) || isStructType(field)) {
         return code`${from}`;
@@ -705,15 +635,7 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
               const cstr = capitalize(valueType.toCodeString([]));
               return code`${cstr}(${from})`;
             }
-          } else if (
-            isTimestamp(valueField) &&
-            (options.useDate === DateOption.STRING || options.useDate === DateOption.STRING_NANO)
-          ) {
-            return code`${utils.globalThis}.String(${from})`;
-          } else if (
-            isTimestamp(valueField) &&
-            (options.useDate === DateOption.DATE || options.useDate === DateOption.TIMESTAMP)
-          ) {
+          } else if (isTimestamp(valueField)) {
             return code`${utils.fromJsonTimestamp}(${from})`;
           } else if (isValueType(ctx, valueField)) {
             return code`${from} as ${valueType}`;
@@ -861,18 +783,8 @@ function generateToJson(
       if (isEnum(field)) {
         const toJson = getEnumMethod(ctx, field.typeName, "ToJSON");
         return code`${toJson}(${from})`;
-      } else if (isTimestamp(field) && options.useDate === DateOption.DATE) {
+      } else if (isTimestamp(field)) { 
         return code`${from}.toISOString()`;
-      } else if (
-        isTimestamp(field) &&
-        (options.useDate === DateOption.STRING || options.useDate === DateOption.STRING_NANO)
-      ) {
-        return code`${from}`;
-      } else if (isTimestamp(field) && options.useDate === DateOption.TIMESTAMP) {
-        if (options.useJsonTimestamp === JsonTimestampOption.RAW) {
-          return code`${from}`;
-        }
-        return code`${utils.fromTimestamp}(${from}).toISOString()`;
       } else if (isMapType(ctx, messageDesc, field)) {
         // For map types, drill-in and then admittedly re-hard-code our per-value-type logic
         const valueType = (typeMap.get(field.typeName)![2] as DescriptorProto).field[1];
@@ -881,15 +793,8 @@ function generateToJson(
           return code`${toJson}(${from})`;
         } else if (isBytes(valueType)) {
           return code`${utils.base64FromBytes}(${from})`;
-        } else if (isTimestamp(valueType) && options.useDate === DateOption.DATE) {
+        } else if (isTimestamp(valueType)) {
           return code`${from}.toISOString()`;
-        } else if (
-          isTimestamp(valueType) &&
-          (options.useDate === DateOption.STRING || options.useDate === DateOption.STRING_NANO)
-        ) {
-          return code`${from}`;
-        } else if (isTimestamp(valueType) && options.useDate === DateOption.TIMESTAMP) {
-          return code`${utils.fromTimestamp}(${from}).toISOString()`;
         } else if (isWholeNumber(valueType)) {
           return code`Math.round(${from})`;
         } else if (isScalar(valueType) || isValueType(ctx, valueType)) {
@@ -915,7 +820,6 @@ function generateToJson(
         if (!fieldType) {
           return code`${from}`;
         }
-
         const cstr = capitalize(
           basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
         );
@@ -963,7 +867,7 @@ function generateToJson(
         }
       `);
     } else {
-      let emitDefaultValuesForJson = ctx.options.emitDefaultValues.includes("json-methods");
+      let emitDefaultValuesForJson = false;//ctx.options.emitDefaultValues.includes("json-methods");
       const check =
         (isScalar(field) || isEnum(field)) && !(isWithinOneOf(field) || emitDefaultValuesForJson)
           ? notDefaultCheck(ctx, field, messageDesc.options, `${messageProperty}`)
@@ -1012,10 +916,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
     const readSnippet = (from: string): Code => {
       if (
         isPrimitive(field) ||
-        (isTimestamp(field) &&
-          (options.useDate === DateOption.DATE ||
-            options.useDate === DateOption.STRING ||
-            options.useDate === DateOption.STRING_NANO)) ||
+        isTimestamp(field) ||
         isValueType(ctx, field)
       ) {
         return code`${from}`;
@@ -1033,12 +934,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
             }
           } else if (isAnyValueType(valueField)) {
             return code`${from}`;
-          } else if (
-            isTimestamp(valueField) &&
-            (options.useDate === DateOption.DATE ||
-              options.useDate === DateOption.STRING ||
-              options.useDate === DateOption.STRING_NANO)
-          ) {
+          } else if (isTimestamp(valueField)) {
             return code`${from}`;
           } else if (isValueType(ctx, valueField)) {
             return code`${from}`;
