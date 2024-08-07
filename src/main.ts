@@ -29,7 +29,6 @@ import {
   isLong,
   isMapType,
   isMessage,
-  isOptionalProperty,
   isPrimitive,
   isRepeated,
   isScalar,
@@ -52,9 +51,7 @@ import {
   impProto,
   addComment,
   maybePrefixPackage,
-  nullOrUndefined,
   safeAccessor,
-  withAndMaybeCheckIsNotNull,
 } from "./utils";
 import { visit, visitServices } from "./visit";
 
@@ -425,9 +422,8 @@ function generateInterfaceDeclaration(
     const info = sourceInfo.lookup(Fields.message.field, index);
     addComment(info, chunks, fieldDesc.options?.deprecated);
     const fieldKey = safeAccessor(getFieldName(fieldDesc));
-    const isOptional = isOptionalProperty(fieldDesc, messageDesc.options);
-    const type = toTypeName(ctx, messageDesc, fieldDesc, isOptional);
-    chunks.push(code`${fieldKey}${isOptional ? "?" : ""}: ${type}, `);
+    const type = toTypeName(ctx, messageDesc, fieldDesc, fieldDesc.proto3Optional);
+    chunks.push(code`${fieldKey}${fieldDesc.proto3Optional ? "?" : ""}: ${type}, `);
   });
 
   chunks.push(code`}`);
@@ -446,7 +442,7 @@ function generateBaseInstanceFactory(
   for (const field of messageDesc.field) {
     const fieldKey = safeAccessor(getFieldName(field));
     const val = isWithinOneOf(field)
-      ? nullOrUndefined()
+      ? "undefined" 
       : isMapType(ctx, messageDesc, field)
       ? "new Map()"
       : isRepeated(field)
@@ -604,22 +600,22 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
     } else if (isAnyValueType(field)) {
       chunks.push(code`${fieldKey}: ${ctx.utils.isSet}(${jsonPropertyOptional})
         ? ${readSnippet(`${jsonProperty}`)}
-        : ${nullOrUndefined()},
+        : unefined,
       `);
     } else if (isStructType(field)) {
       chunks.push(
         code`${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
           ? ${readSnippet(`${jsonProperty}`)}
-          : ${nullOrUndefined()},`,
+          : undefined,`,
       );
     } else if (isListValueType(field)) {
       chunks.push(code`
         ${fieldKey}: ${ctx.utils.globalThis}.Array.isArray(${jsonProperty})
           ? ${readSnippet(`${jsonProperty}`)}
-          : ${nullOrUndefined()},
+          : undefined,
       `);
     } else {
-      const fallback = isWithinOneOf(field) ? nullOrUndefined() : defaultValue(ctx, field);
+      const fallback = isWithinOneOf(field) ? "undefined" : defaultValue(ctx, field);
       chunks.push(code`
         ${fieldKey}: ${ctx.utils.isSet}(${jsonProperty})
           ? ${readSnippet(`${jsonProperty}`)}
@@ -717,15 +713,6 @@ function generateToJson(
         return code`${type}.toJSON(${from})`;
       } else if (isBytes(field)) {
         return code`${utils.base64FromBytes}(${from})`;
-      // } else if (isLong(field) && isJsTypeFieldOption(field)) {
-      //   const fieldType = field.type;
-      //   if (!fieldType) {
-      //     return code`${from}`;
-      //   }
-      //   const cstr = capitalize(
-      //     basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
-      //   );
-      //   return code`${utils.globalThis}.${cstr}(${from})`;
       } else if (isWholeNumber(field)) {
         return code`Math.round(${from})`;
       } else {
@@ -759,7 +746,7 @@ function generateToJson(
       const check =
         (isScalar(field) || isEnum(field)) && !(isWithinOneOf(field))
           ? notDefaultCheck(ctx, field, messageDesc.options, `${messageProperty}`)
-          : `${messageProperty} !== undefined ${withAndMaybeCheckIsNotNull(messageProperty)}`;
+          : `${messageProperty} !== undefined`;
 
       chunks.push(code`
         if (${check}) {
@@ -845,8 +832,6 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
     if (isRepeated(field)) {
       if (isMapType(ctx, messageDesc, field)) {
         const fieldType = toTypeName(ctx, messageDesc, field);
-        const i = convertFromObjectKey(ctx, messageDesc, field, "key");
-
           chunks.push(code`
             ${messageProperty} = (() => {
               const m = new Map();

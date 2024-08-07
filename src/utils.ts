@@ -159,13 +159,13 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
   public clientStreaming: boolean;
   public serverStreaming: boolean;
 
-  private original: MethodDescriptorProto;
+  readonly original: MethodDescriptorProto;
   /**
    * The name of this method with formatting applied according to the `Options` object passed to the constructor.
    * Automatically updates to any changes to the `Options` or `name` of this object
    */
   public get formattedName() {
-    return FormattedMethodDescriptor.formatName(this.name);
+    return camelCaseAnything(this.name);
   }
 
   constructor(src: MethodDescriptorProto) {
@@ -184,16 +184,6 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
    */
   public getSource(): MethodDescriptorProto {
     return this.original;
-  }
-
-  /**
-   * Applies formatting rules to a gRPC method name.
-   * @param methodName The original method name
-   * @param options The options object containing rules to apply
-   * @returns The formatted method name
-   */
-  public static formatName(methodName: string) {
-    return camelCaseAnything(methodName);
   }
 }
 
@@ -240,30 +230,16 @@ export function impFile(spec: string) {
 
 export function impProto(module: string, type: string): Import {
   const prefix = "";
-  const protoFile = `${module}.proto`;
-  // if (options.M[protoFile]) {
-  //   return imp(`${prefix}${type}@${options.M[protoFile]}`);
-  // }
   return imp(`${prefix}${type}@./${module}.pb}`);
 }
 
-export function arrowFunction(params: string, body: Code | string, isOneLine: boolean = true): Code {
-  if (isOneLine) {
-    return code`(${params}) => ${body}`;
-  }
-  return code`(${params}) => { ${body} }`;
-}
-
-export function nullOrUndefined(hasProto3Optional: boolean = false) {
-  // return options.useNullAsOptional ? `null ${hasProto3Optional ? "| undefined" : ""}` : "undefined";
-  return "undefined";
-}
-export function maybeCheckIsNotNull(typeName: string, prefix?: string) {
-  return "";
-}
-export function withAndMaybeCheckIsNotNull(typeName: string) {
-  return maybeCheckIsNotNull(typeName, "&&");
-}
+// Could be useful should we want to use an arrow function
+// export function arrowFunction(params: string, body: Code | string, isOneLine: boolean = true): Code {
+//   if (isOneLine) {
+//     return code`(${params}) => ${body}`;
+//   }
+//   return code`(${params}) => { ${body} }`;
+// }
 
 export async function getVersions(request: CodeGeneratorRequest) {
   let protocVersion = "unknown";

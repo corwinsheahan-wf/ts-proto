@@ -6,22 +6,15 @@ import {
   FieldDescriptorProto,
   FieldDescriptorProto_Label,
   FieldDescriptorProto_Type,
-  FieldOptions_JSType,
-  FileDescriptorProto,
   MessageOptions,
   MethodDescriptorProto,
-  ServiceDescriptorProto,
 } from "ts-proto-descriptors";
 import { uncapitalize } from "./case";
 import { Context } from "./context";
 import SourceInfo from "./sourceInfo";
 import {
-  FormattedMethodDescriptor,
   fail,
   impProto,
-  maybePrefixPackage,
-  nullOrUndefined,
-  withAndMaybeCheckIsNotNull,
 } from "./utils";
 import { visit } from "./visit";
 
@@ -61,7 +54,7 @@ export function basicTypeName(
     case FieldDescriptorProto_Type.TYPE_SINT64:
     case FieldDescriptorProto_Type.TYPE_FIXED64:
     case FieldDescriptorProto_Type.TYPE_SFIXED64:
-      return longTypeName(ctx);
+      return longTypeName();
     case FieldDescriptorProto_Type.TYPE_BOOL:
       return code`boolean`;
     case FieldDescriptorProto_Type.TYPE_STRING:
@@ -118,7 +111,7 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
     case FieldDescriptorProto_Type.TYPE_MESSAGE:
     case FieldDescriptorProto_Type.TYPE_GROUP:
     default:
-      return nullOrUndefined();
+      return "undefined";
   }
 }
 
@@ -131,9 +124,7 @@ export function notDefaultCheck(
 ): Code {
   const { typeMap } = ctx;
 
-  const isOptional = isOptionalProperty(field, messageOptions);
-
-  const maybeNotUndefinedAnd = isOptional ? `${place} !== undefined ${withAndMaybeCheckIsNotNull(place)} &&` : "";
+  const maybeNotUndefinedAnd = field.proto3Optional ? `${place} !== undefined &&` : "";
 
   switch (field.type) {
     case FieldDescriptorProto_Type.TYPE_DOUBLE:
@@ -221,34 +212,10 @@ export function isScalar(field: FieldDescriptorProto): boolean {
   ];
   return scalarTypes.includes(field.type);
 }
-
-// When useOptionals='messages', non-scalar fields are translated into optional
-// properties.
-// When useOptionals='all', all fields are translated into
-// optional properties, with the exception of map Entry key/values, which must
-// always be present.
-// When useOptionals='deprecatedOnly', all deprecated fields are translated into
-// optional properties, with the exception of map Entry key/values, which must
-// always be present.
-// OneOf fields are always optional, whenever oneof=unions option not in use.
 export function isOptionalProperty(
   field: FieldDescriptorProto,
-  messageOptions: MessageOptions | undefined,
 ): boolean {
   return field.proto3Optional;
-  // const optionalMessages = false
-  // //   options.useOptionals === true || options.useOptionals === "messages" || options.useOptionals === "all";
-  // const optionalAll = false; //options.useOptionals === "all";
-  // const deprecatedOnly = false;//options.useOptionals === "deprecatedOnly" && field.options && field.options.deprecated;
-  //
-  // return (
-  //   (optionalMessages && isMessage(field) && !isRepeated(field)) ||
-  //   ((optionalAll || deprecatedOnly) && !messageOptions?.mapEntry) ||
-  //   // (options.noDefaultsForOptionals && !isRepeated(field) && (isScalar(field) || isEnum(field))) ||
-  //   // file is proto2, we have enabled proto2 optionals, and the field itself is optional
-  //   // don't bother verifying that oneof is not union. union oneofs generate their own properties.
-  //   isWithinOneOf(field) ||
-  // );
 }
 
 /** This includes all scalars, enums and the [groups type](https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/DescriptorProtos.FieldDescriptorProto.Type.html#TYPE_GROUP) */
@@ -343,10 +310,6 @@ export function isStructTypeName(typeName: string): boolean {
   return typeName === "google.protobuf.Struct" || typeName === ".google.protobuf.Struct";
 }
 
-export function isLongValueType(field: FieldDescriptorProto): boolean {
-  return field.typeName === ".google.protobuf.Int64Value" || field.typeName === ".google.protobuf.UInt64Value";
-}
-
 export function valueTypeName(ctx: Context, typeName: string): Code | undefined {
   switch (typeName) {
     case ".google.protobuf.StringValue":
@@ -358,8 +321,7 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
       return code`number`;
     case ".google.protobuf.Int64Value":
     case ".google.protobuf.UInt64Value":
-      // return options ? longTypeName(options) : code`number`;
-      return longTypeName(ctx);
+      return longTypeName();
     case ".google.protobuf.BoolValue":
       return code`boolean`;
     case ".google.protobuf.BytesValue":
@@ -381,16 +343,8 @@ export function valueTypeName(ctx: Context, typeName: string): Code | undefined 
   }
 }
 
-function longTypeName(ctx: Context): Code {
+function longTypeName(): Code {
   return code`number`;
-}
-
-function jsTypeName(field: FieldDescriptorProto): Code | undefined {
-  if (field.options?.jstype === FieldOptions_JSType.JS_STRING) {
-    return code`string`;
-  } else if (field.options?.jstype === FieldOptions_JSType.JS_NUMBER) {
-    return code`number`;
-  }
 }
 
 /** Maps `.some_proto_namespace.Message` to a TypeName. */
@@ -409,7 +363,7 @@ export function messageToTypeName(
     if (typeOptions.repeated ?? false) {
       return valueType;
     }
-    return code`${valueType} | ${nullOrUndefined()}`;
+    return code`${valueType} | "undefined"`;
   }
   // Look for other special prototypes like Timestamp that aren't technically wrapper types
   if (!typeOptions.keepValueType && protoType === ".google.protobuf.Timestamp") {
@@ -439,7 +393,7 @@ export function toTypeName(
 ): Code {
   function finalize(type: Code, isOptional: boolean) {
     if (isOptional) {
-      return code`${type} | ${nullOrUndefined(field.proto3Optional)}`;
+      return code`${type} | undefined`;
     }
     return type;
   }
@@ -481,30 +435,6 @@ export function toTypeName(
       (isWithinOneOf(field) && field.proto3Optional) ||
       ensureOptional,
   );
-}
-
-/**
- * For a protobuf map field, if the generated code should use the javascript Map type.
- *
- * If the type of a protobuf map key corresponds to the Long type, we always use the Map type. This avoids generating
- * invalid code such as below (using Long as key of a javascript object):
- *
- * export interface Foo {
- *  bar: { [key: Long]: Long }
- * }
- *
- * See https://github.com/stephenh/ts-proto/issues/708 for more details.
- */
-export function shouldGenerateJSMapType(): boolean {
-    return true;
-  // }
-  // const mapType = detectMapType(ctx, message, field);
-  // if (!mapType) {
-  //   return false;
-  // }
-  // return (
-  //   mapType.keyField.type === FieldDescriptorProto_Type.TYPE_BOOL 
-  // );
 }
 
 export function detectMapType(

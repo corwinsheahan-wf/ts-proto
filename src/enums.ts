@@ -1,11 +1,9 @@
 import { code, def, Code, joinCode } from "ts-poet";
 import { EnumDescriptorProto, EnumValueDescriptorProto } from "ts-proto-descriptors";
 import { addComment } from "./utils";
-import { uncapitalize, camelToSnake } from "./case";
+import { uncapitalize } from "./case";
 import SourceInfo, { Fields } from "./sourceInfo";
 import { Context } from "./context";
-
-type UnrecognizedEnum = { present: false } | { present: true; name: string };
 
 // Output the `enum { Foo, A = 0, B = 1 }`
 export function generateEnum(
@@ -15,7 +13,6 @@ export function generateEnum(
   sourceInfo: SourceInfo,
 ): Code {
   const chunks: Code[] = [];
-  let unrecognizedEnum: UnrecognizedEnum = { present: false };
 
   addComment(sourceInfo, chunks, enumDesc.options?.deprecated);
 
@@ -33,9 +30,9 @@ export function generateEnum(
   chunks.push(code`}`);
 
   chunks.push(code`\n`);
-  chunks.push(generateEnumFromJson(ctx, fullName, enumDesc, unrecognizedEnum));
+  chunks.push(generateEnumFromJson(ctx, fullName, enumDesc));
   chunks.push(code`\n`);
-  chunks.push(generateEnumToJson(ctx, fullName, enumDesc, unrecognizedEnum));
+  chunks.push(generateEnumToJson(ctx, fullName, enumDesc));
   return joinCode(chunks, { on: "\n" });
 }
 
@@ -44,7 +41,6 @@ export function generateEnumFromJson(
   ctx: Context,
   fullName: string,
   enumDesc: EnumDescriptorProto,
-  unrecognizedEnum: UnrecognizedEnum,
 ): Code {
   const { utils } = ctx;
   const chunks: Code[] = [];
@@ -79,7 +75,6 @@ export function generateEnumToJson(
   ctx: Context,
   fullName: string,
   enumDesc: EnumDescriptorProto,
-  unrecognizedEnum: UnrecognizedEnum,
 ): Code {
   const { utils } = ctx;
 
@@ -93,35 +88,6 @@ export function generateEnumToJson(
     const memberName = getMemberName(ctx, enumDesc, valueDesc);
     const valueName = getValueName(ctx, fullName, valueDesc);
     chunks.push(code`case ${fullName}.${memberName}: return "${valueName}";`);
-  }
-
-    // We use globalThis to avoid conflicts on protobuf types named `Error`.
-    chunks.push(code`
-      default:
-        throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
-    `);
-
-  chunks.push(code`}`);
-  chunks.push(code`}`);
-  return joinCode(chunks, { on: "\n" });
-}
-
-/** Generates a function with a big switch statement to encode our string enum -> int value. */
-export function generateEnumToNumber(
-  ctx: Context,
-  fullName: string,
-  enumDesc: EnumDescriptorProto,
-  unrecognizedEnum: UnrecognizedEnum,
-): Code {
-  const { utils } = ctx;
-
-  const chunks: Code[] = [];
-
-  const functionName = uncapitalize(fullName) + "ToNumber";
-  chunks.push(code`export function ${def(functionName)}(object: ${fullName}): number {`);
-  chunks.push(code`switch (object) {`);
-  for (const valueDesc of enumDesc.value) {
-    chunks.push(code`case ${fullName}.${getMemberName(ctx, enumDesc, valueDesc)}: return ${valueDesc.number};`);
   }
 
     // We use globalThis to avoid conflicts on protobuf types named `Error`.

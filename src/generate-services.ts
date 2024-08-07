@@ -108,8 +108,7 @@ export function generateServiceClientImpl(
   chunks.push(code`export const ${serviceNameConst} = "${serviceName}";`);
 
   // Define the FooServiceImpl class
-  const i = name;
-  chunks.push(code`export class ${name}ClientImpl implements ${def(i)} {`);
+  chunks.push(code`export class ${name}ClientImpl implements ${def(name)} {`);
 
   // Create the constructor(rpc: Rpc)
   const rpcType = "Rpc";
