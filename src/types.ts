@@ -142,11 +142,6 @@ export function notDefaultCheck(
       const typeInfo = typeMap.get(field.typeName)!;
       const enumProto = typeInfo[2] as EnumDescriptorProto;
       const defaultEnum = enumProto.value.find((v) => v.number === defaultValue(ctx, field)) || enumProto.value[0];
-      // if (options.stringEnums) {
-      //   const enumType = messageToTypeName(ctx, field.typeName);
-      //   const enumValue = getEnumMemberName(ctx, enumProto, defaultEnum);
-      //   return code`${maybeNotUndefinedAnd} ${place} !== ${enumType}.${enumValue}`;
-      // } else {
       return code`${maybeNotUndefinedAnd} ${place} !== ${defaultEnum.number}`;
     // }
     case FieldDescriptorProto_Type.TYPE_UINT64:
