@@ -5,7 +5,6 @@ import {
   ServiceDescriptorProto,
 } from "ts-proto-descriptors";
 import SourceInfo, { Fields } from "./sourceInfo";
-import { Options } from "./options";
 import { maybeSnakeToCamel } from "./case";
 
 type MessageVisitor = (
@@ -26,7 +25,6 @@ export function visit(
   proto: FileDescriptorProto | DescriptorProto,
   sourceInfo: SourceInfo,
   messageFn: MessageVisitor,
-  options: Options,
   enumFn: EnumVisitor = () => {},
   tsPrefix: string = "",
   protoPrefix: string = "",
@@ -38,7 +36,7 @@ export function visit(
     // I.e. Foo_Bar.Zaz_Inner
     const protoFullName = protoPrefix + enumDesc.name;
     // I.e. FooBar_ZazInner
-    const tsFullName = tsPrefix + maybeSnakeToCamel(enumDesc.name, options);
+    const tsFullName = tsPrefix + maybeSnakeToCamel(enumDesc.name);
     const nestedSourceInfo = sourceInfo.open(childEnumType, index);
     enumFn(tsFullName, enumDesc, nestedSourceInfo, protoFullName);
   });
@@ -50,11 +48,11 @@ export function visit(
     // I.e. Foo_Bar.Zaz_Inner
     const protoFullName = protoPrefix + message.name;
     // I.e. FooBar_ZazInner
-    const tsFullName = tsPrefix + maybeSnakeToCamel(messageName(message), options);
+    const tsFullName = tsPrefix + maybeSnakeToCamel(messageName(message));
     const nestedSourceInfo = sourceInfo.open(childType, index);
     messageFn(tsFullName, message, nestedSourceInfo, protoFullName);
-    const delim = options.useSnakeTypeName ? "_" : "";
-    visit(message, nestedSourceInfo, messageFn, options, enumFn, tsFullName + delim, protoFullName + ".");
+    const delim = "";
+    visit(message, nestedSourceInfo, messageFn, enumFn, tsFullName + delim, protoFullName + ".");
   });
 }
 

@@ -1,4 +1,4 @@
-import { maybeAddComment, generateIndexFiles } from "../src/utils";
+import { addComment, generateIndexFiles } from "../src/utils";
 import { defaultOptions } from "../src/options";
 import { Code, joinCode } from "ts-poet";
 import { FileDescriptorProto } from "ts-proto-descriptors";
@@ -8,7 +8,7 @@ describe("utils", () => {
     it("handles single-line impl comments", () => {
       // Foo
       const chunks: Code[] = [];
-      maybeAddComment({ comments: true }, { leadingComments: " Foo\n" }, chunks);
+      addComment({ comments: true }, { leadingComments: " Foo\n" }, chunks);
       expect(joinCode(chunks).toString()).toMatchInlineSnapshot(`
         "/** Foo */
         "
@@ -18,7 +18,7 @@ describe("utils", () => {
     it("handles single-dot star comments", () => {
       // /* Foo */
       const chunks: Code[] = [];
-      maybeAddComment({ comments: true }, { leadingComments: " Foo " }, chunks);
+      addComment({ comments: true }, { leadingComments: " Foo " }, chunks);
       expect(joinCode(chunks).toString()).toMatchInlineSnapshot(`
         "/** Foo */
         "
@@ -28,7 +28,7 @@ describe("utils", () => {
     it("handles single-line double-dot star comments", () => {
       // /** Foo */
       const chunks: Code[] = [];
-      maybeAddComment({ comments: true }, { leadingComments: " * Foo " }, chunks);
+      addComment({ comments: true }, { leadingComments: " * Foo " }, chunks);
       expect(joinCode(chunks).toString()).toMatchInlineSnapshot(`
         "/** Foo */
         "
@@ -42,7 +42,7 @@ describe("utils", () => {
       //  * bar.
       //  */
       const chunks: Code[] = [];
-      maybeAddComment({ comments: true }, { leadingComments: "*\n Foo\n \n bar.\n" }, chunks);
+      addComment({ comments: true }, { leadingComments: "*\n Foo\n \n bar.\n" }, chunks);
       expect(joinCode(chunks).toString()).toMatchInlineSnapshot(`
         "/**
          * Foo
@@ -57,7 +57,7 @@ describe("utils", () => {
       // // Foo
       // // Bar
       const chunks: Code[] = [];
-      maybeAddComment({ comments: true }, { leadingComments: " Foo\n Bar\n" }, chunks);
+      addComment({ comments: true }, { leadingComments: " Foo\n Bar\n" }, chunks);
       expect(joinCode(chunks).toString()).toMatchInlineSnapshot(`
         "/**
          * Foo
@@ -69,7 +69,7 @@ describe("utils", () => {
 
     it("doesn't emit comments when disabled", () => {
       const chunks: Code[] = [];
-      maybeAddComment({ comments: false }, { leadingComments: " Foo\n" }, chunks);
+      addComment({ comments: false }, { leadingComments: " Foo\n" }, chunks);
       expect(joinCode(chunks).toString()).toMatchInlineSnapshot(`""`);
     });
   });

@@ -9,33 +9,28 @@ import {
 } from "ts-proto-descriptors";
 import ReadStream = NodeJS.ReadStream;
 import { SourceDescription } from "./sourceInfo";
-import { Options, ServiceOption } from "./options";
-import { camelCaseGrpc, maybeSnakeToCamel, snakeToCamel } from "./case";
-
-export function protoFilesToGenerate(request: CodeGeneratorRequest): FileDescriptorProto[] {
-  return request.protoFile.filter((f) => request.fileToGenerate.includes(f.name));
-}
+import { camelCase as camelCaseAnything } from "case-anything";
 
 type PackageTree = {
   index: string;
   chunks: Code[];
   leaves: { [k: string]: PackageTree };
 };
-export function generateIndexFiles(files: FileDescriptorProto[], options: Options): [string, Code][] {
+export function generateIndexFiles(files: FileDescriptorProto[]): [string, Code][] {
   const packageTree: PackageTree = {
     index: "index.ts",
     leaves: {},
     chunks: [],
   };
   for (const { name, package: pkg } of files) {
-    const moduleName = name.replace(".proto", options.fileSuffix);
+    const moduleName = name.replace(".proto", ".pb");
     const pkgParts = pkg.length > 0 ? pkg.split(".") : [];
 
     const branch = pkgParts.reduce<PackageTree>((branch, part, i): PackageTree => {
       if (!(part in branch.leaves)) {
         const prePkgParts = pkgParts.slice(0, i + 1);
         const index = `index.${prePkgParts.join(".")}.ts`;
-        branch.chunks.push(code`export * as ${part} from "./${path.basename(index, ".ts") + options.importSuffix}";`);
+        branch.chunks.push(code`export * as ${part} from "./${path.basename(index, ".ts")}";`);
         branch.leaves[part] = {
           index,
           leaves: {},
@@ -44,7 +39,7 @@ export function generateIndexFiles(files: FileDescriptorProto[], options: Option
       }
       return branch.leaves[part];
     }, packageTree);
-    branch.chunks.push(code`export * from "./${moduleName + options.importSuffix}";`);
+    branch.chunks.push(code`export * from "./${moduleName}";`);
   }
 
   const indexFiles: [string, Code][] = [];
@@ -95,17 +90,12 @@ export function upperFirst(name: string): string {
 const CloseComment = /\*\//g;
 
 /** Removes potentially harmful characters from comments and pushes it into chunks. */
-export function maybeAddComment(
-  options: Pick<Options, "comments">,
+export function addComment(
   desc: Partial<Pick<SourceDescription, "leadingComments" | "trailingComments">>,
   chunks: Code[],
   deprecated?: boolean,
   prefix: string = "",
 ): void {
-  if (!options.comments) {
-    return;
-  }
-
   let lines: string[] = [];
   if (desc.leadingComments || desc.trailingComments) {
     let content = (desc.leadingComments || desc.trailingComments || "").replace(CloseComment, "* /").trim();
@@ -169,18 +159,16 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
   public clientStreaming: boolean;
   public serverStreaming: boolean;
 
-  private original: MethodDescriptorProto;
-  private ctxOptions: Options;
+  readonly original: MethodDescriptorProto;
   /**
    * The name of this method with formatting applied according to the `Options` object passed to the constructor.
    * Automatically updates to any changes to the `Options` or `name` of this object
    */
   public get formattedName() {
-    return FormattedMethodDescriptor.formatName(this.name, this.ctxOptions);
+    return camelCaseAnything(this.name);
   }
 
-  constructor(src: MethodDescriptorProto, options: Options) {
-    this.ctxOptions = options;
+  constructor(src: MethodDescriptorProto) {
     this.original = src;
     this.name = src.name;
     this.inputType = src.inputType;
@@ -197,51 +185,14 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
   public getSource(): MethodDescriptorProto {
     return this.original;
   }
-
-  /**
-   * Applies formatting rules to a gRPC method name.
-   * @param methodName The original method name
-   * @param options The options object containing rules to apply
-   * @returns The formatted method name
-   */
-  public static formatName(methodName: string, options: Options) {
-    let result = methodName;
-    if (options.lowerCaseServiceMethods || options.outputServices.includes(ServiceOption.GRPC)) {
-      if (options.snakeToCamel) result = camelCaseGrpc(result);
-    }
-    return result;
-  }
 }
 
-export function getFieldJsonName(
-  field: Pick<FieldDescriptorProto, "name" | "jsonName">,
-  options: Pick<Options, "snakeToCamel" | "useJsonName">,
-): string {
-  // use "json_name" defined in a proto file
-  if (options.useJsonName) {
-    return field.jsonName;
-  }
-  // jsonName will be camelCased by the protocol compiler, plus can be overridden by the user,
-  // so just use that instead of our own maybeSnakeToCamel
-  if (options.snakeToCamel.includes("json")) {
-    return field.jsonName;
-  } else {
-    // The user wants to keep snake case in the JSON, but we still want to see if the jsonName
-    // attribute is set as an explicit override.
-    const probableJsonName = snakeToCamel(field.name);
-    const isJsonNameSet = probableJsonName !== field.jsonName;
-    return isJsonNameSet ? field.jsonName : field.name;
-  }
+export function getFieldJsonName(field: Pick<FieldDescriptorProto, "name" | "jsonName">): string {
+  return field.jsonName;
 }
 
-export function getFieldName(
-  field: Pick<FieldDescriptorProto, "name" | "jsonName">,
-  options: Pick<Options, "snakeToCamel" | "useJsonName">,
-): string {
-  if (options.useJsonName) {
-    return field.jsonName;
-  }
-  return maybeSnakeToCamel(field.name, options);
+export function getFieldName(field: Pick<FieldDescriptorProto, "name" | "jsonName">): string {
+  return field.jsonName;
 }
 
 /**
@@ -269,56 +220,17 @@ export function getPropertyAccessor(objectName: string, propertyName: string, op
     : `${objectName}${optional ? "?." : ""}[${safeAccessor(propertyName)}]`;
 }
 
-export function impFile(options: Options, spec: string) {
-  return imp(`${spec}${options.importSuffix}`);
+export function impProto(module: string, type: string): Import {
+  return imp(`${type}@./${module}.pb}`);
 }
 
-export function impProto(options: Options, module: string, type: string): Import {
-  const prefix = options.onlyTypes ? "t:" : "";
-  const protoFile = `${module}.proto`;
-  if (options.M[protoFile]) {
-    return imp(`${prefix}${type}@${options.M[protoFile]}`);
-  }
-  return imp(`${prefix}${type}@./${module}${options.fileSuffix}${options.importSuffix}`);
-}
-
-export function tryCatchBlock(tryBlock: Code | string, handleErrorBlock: Code | string): Code {
-  return code`try {
-    ${tryBlock}
-  } catch (error) {
-    ${handleErrorBlock}
-  }`;
-}
-
-export function arrowFunction(params: string, body: Code | string, isOneLine: boolean = true): Code {
-  if (isOneLine) {
-    return code`(${params}) => ${body}`;
-  }
-  return code`(${params}) => { ${body} }`;
-}
-
-export function nullOrUndefined(options: Pick<Options, "useNullAsOptional">, hasProto3Optional: boolean = false) {
-  return options.useNullAsOptional ? `null ${hasProto3Optional ? "| undefined" : ""}` : "undefined";
-}
-export function maybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string, prefix?: string) {
-  return options.useNullAsOptional ? ` ${prefix} ${typeName} !== null` : "";
-}
-export function maybeCheckIsNull(options: Pick<Options, "useNullAsOptional">, typeName: string, prefix?: string) {
-  return options.useNullAsOptional ? ` ${prefix} ${typeName} === null` : "";
-}
-
-export function withOrMaybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNotNull(options, typeName, "||");
-}
-export function withOrMaybeCheckIsNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNull(options, typeName, "||");
-}
-export function withAndMaybeCheckIsNotNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNotNull(options, typeName, "&&");
-}
-export function withAndMaybeCheckIsNull(options: Pick<Options, "useNullAsOptional">, typeName: string) {
-  return maybeCheckIsNotNull(options, typeName, "&&");
-}
+// Could be useful should we want to use an arrow function
+// export function arrowFunction(params: string, body: Code | string, isOneLine: boolean = true): Code {
+//   if (isOneLine) {
+//     return code`(${params}) => ${body}`;
+//   }
+//   return code`(${params}) => { ${body} }`;
+// }
 
 export async function getVersions(request: CodeGeneratorRequest) {
   let protocVersion = "unknown";
