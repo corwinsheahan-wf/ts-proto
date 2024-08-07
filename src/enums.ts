@@ -20,28 +20,17 @@ export function generateEnum(
 
   addComment(sourceInfo, chunks, enumDesc.options?.deprecated);
 
-  // if (options.enumsAsLiterals) {
-  //   chunks.push(code`export const ${def(fullName)} = {`);
-  // } else {
   chunks.push(code`export enum ${def(fullName)} {`);
-  // }
 
   const delimiter = "=";
 
   enumDesc.value.forEach((valueDesc, index) => {
     const info = sourceInfo.lookup(Fields.enum.value, index);
     const memberName = getMemberName(ctx, enumDesc, valueDesc);
-    if (valueDesc.number === options.unrecognizedEnumValue) {
-      unrecognizedEnum = { present: true, name: memberName };
-    }
     addComment(info, chunks, valueDesc.options?.deprecated, `${memberName} - `);
     chunks.push(code`${memberName} ${delimiter} ${valueDesc.number.toString()},`);
   });
-
-  if (options.unrecognizedEnum && !unrecognizedEnum.present) {
-    chunks.push(code`${options.unrecognizedEnumName} ${delimiter} ${options.unrecognizedEnumValue.toString()},`);
-  }
-
+  
   chunks.push(code`}`);
 
   chunks.push(code`\n`);
@@ -75,27 +64,11 @@ export function generateEnumFromJson(
     `);
   }
 
-  if (options.unrecognizedEnum) {
-    if (!unrecognizedEnum.present) {
-      chunks.push(code`
-        case ${options.unrecognizedEnumValue}:
-        case "${options.unrecognizedEnumName}":
-        default:
-          return ${fullName}.${options.unrecognizedEnumName};
-      `);
-    } else {
-      chunks.push(code`
-        default:
-          return ${fullName}.${unrecognizedEnum.name};
-      `);
-    }
-  } else {
     // We use globalThis to avoid conflicts on protobuf types named `Error`.
     chunks.push(code`
       default:
         throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
     `);
-  }
 
   chunks.push(code`}`);
   chunks.push(code`}`);
@@ -123,28 +96,11 @@ export function generateEnumToJson(
     chunks.push(code`case ${fullName}.${memberName}: return "${valueName}";`);
   }
 
-  if (options.unrecognizedEnum) {
-    if (!unrecognizedEnum.present) {
-      chunks.push(code`
-        case ${fullName}.${options.unrecognizedEnumName}:`);
-
-      chunks.push(code`
-        default:
-          return "${options.unrecognizedEnumName}";
-      `);
-    } else {
-      chunks.push(code`
-      default:
-        return "${unrecognizedEnum.name}";
-    `);
-    }
-  } else {
     // We use globalThis to avoid conflicts on protobuf types named `Error`.
     chunks.push(code`
       default:
         throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
     `);
-  }
 
   chunks.push(code`}`);
   chunks.push(code`}`);
@@ -169,26 +125,11 @@ export function generateEnumToNumber(
     chunks.push(code`case ${fullName}.${getMemberName(ctx, enumDesc, valueDesc)}: return ${valueDesc.number};`);
   }
 
-  if (options.unrecognizedEnum) {
-    if (!unrecognizedEnum.present) {
-      chunks.push(code`
-        case ${fullName}.${options.unrecognizedEnumName}:
-        default:
-          return ${options.unrecognizedEnumValue};
-      `);
-    } else {
-      chunks.push(code`
-        default:
-          return ${options.unrecognizedEnumValue};
-      `);
-    }
-  } else {
     // We use globalThis to avoid conflicts on protobuf types named `Error`.
     chunks.push(code`
       default:
         throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
     `);
-  }
 
   chunks.push(code`}`);
   chunks.push(code`}`);

@@ -145,8 +145,8 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   let hasStreamingMethods = false;
 
   visitServices(fileDesc, sourceInfo, (serviceDesc, sInfo) => {
-    // FIXME: Weneed this outputServices option for this, probably should examine why that is
-    const uniqueServices = [...new Set(options.outputServices)].sort();
+    // FIXME: We can probably delete the service definitions altogether if we modify the base service impl
+    const uniqueServices = [...new Set(["generic-definitions", "default"])].sort();
     uniqueServices.forEach((outputService) => {
       if (outputService === ServiceOption.GENERIC) {
         chunks.push(generateGenericServiceDefinition(ctx, fileDesc, sInfo, serviceDesc));

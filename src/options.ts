@@ -31,14 +31,7 @@ export type Options = {
   // snakeToCamel: Array<"json" | "keys">;
   // TODO: Deterimine what we'd need here
 
-  // esModuleInterop: boolean;
-  // importSuffix: string;
-  outputServices: ServiceOption[]; // defaults to generic-definitions
   // TODO: Figure out if we need these 3, more detail/investigation needed
-  unrecognizedEnum: boolean;
-  unrecognizedEnumName: string;
-  unrecognizedEnumValue: number;
-
   useJsonName: boolean; // TODO: See about consistency with dart proto plugin
   useJsonWireFormat: boolean; // TODO: I think we might want this defaulted to true
   useMapType: boolean; // TODO: We probably want this, but it's defualted to false
@@ -49,12 +42,6 @@ export function defaultOptions(): Options {
     // context: false,
     // snakeToCamel: ["json", "keys"],
     // emitDefaultValues: [],
-    // esModuleInterop: false, // more investigation, tied to `importSuffix`
-    // importSuffix: "", // probably can kebash and default to something like `.pb.`
-    outputServices: [],
-    unrecognizedEnum: true,
-    unrecognizedEnumName: "UNRECOGNIZED",
-    unrecognizedEnumValue: -1,
     useJsonName: false,
     useJsonWireFormat: false,
     useMapType: false,
@@ -66,11 +53,6 @@ export function optionsFromParameter(parameter: string | undefined): Options {
   if (parameter) {
     const parsed = parseParameter(parameter);
     Object.assign(options, parsed);
-  }
- 
-  if (options.unrecognizedEnumValue) {
-    // Make sure to cast number options to an actual number
-    options.unrecognizedEnumValue = Number(options.unrecognizedEnumValue);
   }
 
   return options;
@@ -116,9 +98,6 @@ export function getTsPoetOpts(
   protocVersion: string,
   fileName?: string,
 ): ToStringOpts {
-  // const { importSuffix } = options;
-  // const pbjs = "protobufjs/minimal" + importSuffix;
-
   return {
     // Comment block at the top of every source file, since these comments require specific
     // syntax incompatible with ts-poet, we will hard-code the string and prepend to the
