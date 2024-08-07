@@ -1,10 +1,6 @@
 import { ToStringOpts } from "ts-poet/build/Code";
 
-export function getTsPoetOpts(
-  tsProtoVersion: string,
-  protocVersion: string,
-  fileName?: string,
-): ToStringOpts {
+export function getTsPoetOpts(tsProtoVersion: string, protocVersion: string, fileName?: string): ToStringOpts {
   return {
     // Comment block at the top of every source file, since these comments require specific
     // syntax incompatible with ts-poet, we will hard-code the string and prepend to the

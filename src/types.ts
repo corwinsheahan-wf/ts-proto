@@ -10,12 +10,9 @@ import {
   MethodDescriptorProto,
 } from "ts-proto-descriptors";
 import { uncapitalize } from "./case";
-import { Context } from "./context";
+import { BaseContext } from "./context";
 import SourceInfo from "./sourceInfo";
-import {
-  fail,
-  impProto,
-} from "./utils";
+import { fail, impProto } from "./utils";
 import { visit } from "./visit";
 
 export function basicLongWireType(type: FieldDescriptorProto_Type): number | undefined {
@@ -34,7 +31,7 @@ export function basicLongWireType(type: FieldDescriptorProto_Type): number | und
 
 /** Returns the type name without any repeated/required/etc. labels. */
 export function basicTypeName(
-  ctx: Context,
+  ctx: BaseContext,
   field: FieldDescriptorProto,
   typeOptions: { keepValueType?: boolean } = {},
 ): Code {
@@ -70,7 +67,7 @@ export function basicTypeName(
   }
 }
 
-export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
+export function defaultValue(ctx: BaseContext, field: FieldDescriptorProto): any {
   const { typeMap } = ctx;
 
   const useDefaultValue = false;
@@ -117,7 +114,7 @@ export function defaultValue(ctx: Context, field: FieldDescriptorProto): any {
 
 /** Creates code that checks that the field is not the default value. Supports scalars and enums. */
 export function notDefaultCheck(
-  ctx: Context,
+  ctx: BaseContext,
   field: FieldDescriptorProto,
   messageOptions: MessageOptions | undefined,
   place: string,
@@ -212,9 +209,7 @@ export function isScalar(field: FieldDescriptorProto): boolean {
   ];
   return scalarTypes.includes(field.type);
 }
-export function isOptionalProperty(
-  field: FieldDescriptorProto,
-): boolean {
+export function isOptionalProperty(field: FieldDescriptorProto): boolean {
   return field.proto3Optional;
 }
 
@@ -262,7 +257,7 @@ export function isWholeNumber(field: FieldDescriptorProto): boolean {
   );
 }
 
-export function isMapType(ctx: Context, messageDesc: DescriptorProto, field: FieldDescriptorProto): boolean {
+export function isMapType(ctx: BaseContext, messageDesc: DescriptorProto, field: FieldDescriptorProto): boolean {
   return detectMapType(ctx, messageDesc, field) !== undefined;
 }
 
@@ -270,7 +265,7 @@ export function isTimestamp(field: FieldDescriptorProto): boolean {
   return field.typeName === ".google.protobuf.Timestamp";
 }
 
-export function isValueType(ctx: Context, field: FieldDescriptorProto): boolean {
+export function isValueType(ctx: BaseContext, field: FieldDescriptorProto): boolean {
   return valueTypeName(ctx, field.typeName) !== undefined;
 }
 
@@ -310,7 +305,7 @@ export function isStructTypeName(typeName: string): boolean {
   return typeName === "google.protobuf.Struct" || typeName === ".google.protobuf.Struct";
 }
 
-export function valueTypeName(ctx: Context, typeName: string): Code | undefined {
+export function valueTypeName(ctx: BaseContext, typeName: string): Code | undefined {
   switch (typeName) {
     case ".google.protobuf.StringValue":
       return code`string`;
@@ -349,7 +344,7 @@ function longTypeName(): Code {
 
 /** Maps `.some_proto_namespace.Message` to a TypeName. */
 export function messageToTypeName(
-  ctx: Context,
+  ctx: BaseContext,
   protoType: string,
   typeOptions: { keepValueType?: boolean; repeated?: boolean } = {},
 ): Code {
@@ -379,14 +374,14 @@ function toModuleAndType(typeMap: TypeMap, protoType: string): [string, string, 
   return typeMap.get(protoType) || fail(`No type found for ${protoType}`);
 }
 
-export function getEnumMethod(ctx: Context, enumProtoType: string, methodSuffix: string): Import {
+export function getEnumMethod(ctx: BaseContext, enumProtoType: string, methodSuffix: string): Import {
   const [module, type] = toModuleAndType(ctx.typeMap, enumProtoType);
   return impProto(module, `${uncapitalize(type)}${methodSuffix}`);
 }
 
 /** Return the TypeName for any field (primitive/message/etc.) as exposed in the interface. */
 export function toTypeName(
-  ctx: Context,
+  ctx: BaseContext,
   messageDesc: DescriptorProto | undefined,
   field: FieldDescriptorProto,
   ensureOptional = false,
@@ -430,15 +425,12 @@ export function toTypeName(
   // union with `undefined` here, either.
   return finalize(
     type,
-    (!isWithinOneOf(field) &&
-      isMessage(field)) ||
-      (isWithinOneOf(field) && field.proto3Optional) ||
-      ensureOptional,
+    (!isWithinOneOf(field) && isMessage(field)) || (isWithinOneOf(field) && field.proto3Optional) || ensureOptional,
   );
 }
 
 export function detectMapType(
-  ctx: Context,
+  ctx: BaseContext,
   messageDesc: DescriptorProto,
   fieldDesc: FieldDescriptorProto,
 ):
@@ -467,14 +459,14 @@ export function detectMapType(
 }
 
 export function rawRequestType(
-  ctx: Context,
+  ctx: BaseContext,
   methodDesc: MethodDescriptorProto,
   typeOptions: { keepValueType?: boolean; repeated?: boolean } = {},
 ): Code {
   return messageToTypeName(ctx, methodDesc.inputType, typeOptions);
 }
 
-export function observableType(ctx: Context, asType: boolean = false): Code {
+export function observableType(ctx: BaseContext, asType: boolean = false): Code {
   // if (ctx.options.useAsyncIterable) {
   //   return code`AsyncIterable`;
   if (asType) {
@@ -484,7 +476,7 @@ export function observableType(ctx: Context, asType: boolean = false): Code {
   }
 }
 
-export function requestType(ctx: Context, methodDesc: MethodDescriptorProto): Code {
+export function requestType(ctx: BaseContext, methodDesc: MethodDescriptorProto): Code {
   let typeName = rawRequestType(ctx, methodDesc, { keepValueType: true });
 
   if (methodDesc.clientStreaming) {
@@ -493,19 +485,19 @@ export function requestType(ctx: Context, methodDesc: MethodDescriptorProto): Co
   return typeName;
 }
 
-export function responseType(ctx: Context, methodDesc: MethodDescriptorProto): Code {
+export function responseType(ctx: BaseContext, methodDesc: MethodDescriptorProto): Code {
   return messageToTypeName(ctx, methodDesc.outputType, { keepValueType: true });
 }
 
-export function responsePromise(ctx: Context, methodDesc: MethodDescriptorProto): Code {
+export function responsePromise(ctx: BaseContext, methodDesc: MethodDescriptorProto): Code {
   return code`Promise<${responseType(ctx, methodDesc)}>`;
 }
 
-export function responseObservable(ctx: Context, methodDesc: MethodDescriptorProto): Code {
+export function responseObservable(ctx: BaseContext, methodDesc: MethodDescriptorProto): Code {
   return code`${observableType(ctx)}<${responseType(ctx, methodDesc)}>`;
 }
 
-export function responsePromiseOrObservable(ctx: Context, methodDesc: MethodDescriptorProto): Code {
+export function responsePromiseOrObservable(ctx: BaseContext, methodDesc: MethodDescriptorProto): Code {
   if (methodDesc.serverStreaming) {
     return responseObservable(ctx, methodDesc);
   }

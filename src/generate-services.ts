@@ -1,16 +1,16 @@
 import { MethodDescriptorProto, FileDescriptorProto, ServiceDescriptorProto } from "ts-proto-descriptors";
-import { Code, code, def, joinCode } from "ts-poet";
+import { Code, code, def, imp, joinCode } from "ts-poet";
 import { requestType, rawRequestType, responsePromiseOrObservable, responseType, observableType } from "./types";
-import { assertInstanceOf, FormattedMethodDescriptor, impFile, addComment, maybePrefixPackage } from "./utils";
+import { assertInstanceOf, FormattedMethodDescriptor, addComment, maybePrefixPackage } from "./utils";
 import SourceInfo, { Fields } from "./sourceInfo";
-import { Context } from "./context";
+import { BaseContext } from "./context";
 
 /**
  * Generates an interface for `serviceDesc`.
  *
  **/
 export function generateService(
-  ctx: Context,
+  ctx: BaseContext,
   fileDesc: FileDescriptorProto,
   sourceInfo: SourceInfo,
   serviceDesc: ServiceDescriptorProto,
@@ -27,8 +27,6 @@ export function generateService(
 
     const params: Code[] = [];
 
-    // the grpc-web clients auto-`fromPartial` the input before handing off to grpc-web's
-    // serde runtime, so it's okay to accept partial results from the client
     const inputType = requestType(ctx, methodDesc);
     params.push(code`request: ${inputType}`);
 
@@ -45,7 +43,7 @@ export function generateService(
   return joinCode(chunks, { on: "\n" });
 }
 
-function generateRegularRpcMethod(ctx: Context, methodDesc: MethodDescriptorProto): Code {
+function generateRegularRpcMethod(ctx: BaseContext, methodDesc: MethodDescriptorProto): Code {
   assertInstanceOf(methodDesc, FormattedMethodDescriptor);
   const rawInputType = rawRequestType(ctx, methodDesc, { keepValueType: true });
   const inputType = requestType(ctx, methodDesc);
@@ -65,35 +63,24 @@ function generateRegularRpcMethod(ctx: Context, methodDesc: MethodDescriptorProt
   rpcMethod = `this.rpc.${rpcMethod}`;
   const service = "this.service";
 
-  function generateGenericRpcBody(): Code {
-    let beforeRequest = code``;
-    let requestParamName = "request";
-
-    let requestInvocation = code`${rpcMethod}<${rawInputType},${responseType(ctx, methodDesc)}>(
+  let requestInvocation = code`return ${rpcMethod}<${rawInputType},${responseType(ctx, methodDesc)}>(
           ${service},
           "${methodDesc.name}",
-          ${requestParamName},
+          request,
           ${rawInputType},
           ${responseType(ctx, methodDesc)})`;
 
-    requestInvocation = code`return ${requestInvocation}`;
-
-    return code`${beforeRequest}
-        ${requestInvocation}`;
-  }
-
-  const body = generateGenericRpcBody();
   return code`
     ${methodDesc.formattedName}(
       ${joinCode(params, { on: "," })}
     ): ${responsePromiseOrObservable(ctx, methodDesc)} {
-      ${body}
+      ${requestInvocation}
     }
   `;
 }
 
 export function generateServiceClientImpl(
-  ctx: Context,
+  ctx: BaseContext,
   fileDesc: FileDescriptorProto,
   serviceDesc: ServiceDescriptorProto,
 ): Code {
@@ -146,8 +133,8 @@ export function generateServiceClientImpl(
  * we don't want our the barrel imports in `index.ts` to have multiple `Rpc`
  * types.
  */
-export function generateRpcType(ctx: Context, hasStreamingMethods: boolean): Code {
-  const messageType = impFile("MessageType@./typeRegistry.pb");
+export function generateRpcType(ctx: BaseContext, hasStreamingMethods: boolean): Code {
+  const messageType = imp("MessageType@./typeRegistry.pb");
 
   // const outputGenericClient = options.outputClientImpl === "generic";
 

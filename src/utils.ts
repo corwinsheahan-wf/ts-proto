@@ -187,15 +187,11 @@ export class FormattedMethodDescriptor implements MethodDescriptorProto {
   }
 }
 
-export function getFieldJsonName(
-  field: Pick<FieldDescriptorProto, "name" | "jsonName">,
-): string {
+export function getFieldJsonName(field: Pick<FieldDescriptorProto, "name" | "jsonName">): string {
   return field.jsonName;
 }
 
-export function getFieldName(
-  field: Pick<FieldDescriptorProto, "name" | "jsonName">,
-): string {
+export function getFieldName(field: Pick<FieldDescriptorProto, "name" | "jsonName">): string {
   return field.jsonName;
 }
 
@@ -224,13 +220,8 @@ export function getPropertyAccessor(objectName: string, propertyName: string, op
     : `${objectName}${optional ? "?." : ""}[${safeAccessor(propertyName)}]`;
 }
 
-export function impFile(spec: string) {
-  return imp(`${spec}`);
-}
-
 export function impProto(module: string, type: string): Import {
-  const prefix = "";
-  return imp(`${prefix}${type}@./${module}.pb}`);
+  return imp(`${type}@./${module}.pb}`);
 }
 
 // Could be useful should we want to use an arrow function

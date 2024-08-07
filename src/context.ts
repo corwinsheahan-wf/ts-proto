@@ -6,6 +6,3 @@ export interface BaseContext {
   typeMap: TypeMap;
   utils: Utils;
 }
-
-// FIXME: Change usages to BaseContext and delete this class
-export interface Context extends BaseContext {}

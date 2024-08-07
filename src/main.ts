@@ -7,7 +7,7 @@ import {
   FileDescriptorProto,
 } from "ts-proto-descriptors";
 import { capitalize } from "./case";
-import { Context } from "./context";
+import { BaseContext } from "./context";
 import { generateEnum } from "./enums";
 import { generateGenericServiceDefinition } from "./generate-generic-service-definition";
 
@@ -47,7 +47,6 @@ import {
   getFieldJsonName,
   getFieldName,
   getPropertyAccessor,
-  impFile,
   impProto,
   addComment,
   maybePrefixPackage,
@@ -55,8 +54,8 @@ import {
 } from "./utils";
 import { visit, visitServices } from "./visit";
 
-export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [string, Code] {
-  const {  utils } = ctx;
+export function generateFile(ctx: BaseContext, fileDesc: FileDescriptorProto): [string, Code] {
+  const { utils } = ctx;
 
   // Google's protofiles are organized like Java, where package == the folder the file
   // is in, and file == a specific service within the package. I.e. you can have multiple
@@ -74,10 +73,8 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
   const chunks: Code[] = [];
 
   // // Indicate this file's source protobuf package for reflective use with google.protobuf.Any
-  // if (options.exportCommonSymbols) {
   chunks.push(code`export const protobufPackage = '${fileDesc.package}';`);
-  // }
-  //
+
   // Syntax, unlike most fields, is not repeated and thus does not use an index
   const sourceInfo = SourceInfo.fromDescriptor(fileDesc);
   const headerComment = sourceInfo.lookup(Fields.file.syntax, undefined);
@@ -104,36 +101,32 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
     },
   );
 
-  visit(
-    fileDesc,
-    sourceInfo,
-    (fullName, message, _sInfo, fullProtoTypeName) => {
-      const fullTypeName = maybePrefixPackage(fileDesc, fullProtoTypeName);
+  visit(fileDesc, sourceInfo, (fullName, message, _sInfo, fullProtoTypeName) => {
+    const fullTypeName = maybePrefixPackage(fileDesc, fullProtoTypeName);
 
-      chunks.push(generateBaseInstanceFactory(ctx, fullName, message, fullTypeName));
+    chunks.push(generateBaseInstanceFactory(ctx, fullName, message, fullTypeName));
 
-      const staticMembers: Code[] = [];
+    const staticMembers: Code[] = [];
 
-      staticMembers.push(code`$type: '${fullTypeName}' as const`);
+    staticMembers.push(code`$type: '${fullTypeName}' as const`);
 
-      staticMembers.push(generateFromJson(ctx, fullName, fullTypeName, message));
-      staticMembers.push(generateToJson(ctx, fullName, fullTypeName, message));
-      staticMembers.push(generateFromPartial(ctx, fullName, message));
+    staticMembers.push(generateFromJson(ctx, fullName, fullTypeName, message));
+    staticMembers.push(generateToJson(ctx, fullName, fullTypeName, message));
+    staticMembers.push(generateFromPartial(ctx, fullName, message));
 
-      if (staticMembers.length > 0) {
-        chunks.push(code`
+    if (staticMembers.length > 0) {
+      chunks.push(code`
             export const ${def(fullName)} = {
               ${joinCode(staticMembers, { on: ",\n\n" })}
             };
           `);
-      }
+    }
 
-      const messageTypeRegistry = impFile("messageTypeRegistry@./typeRegistry.pb");
-      chunks.push(code`
+    const messageTypeRegistry = imp("messageTypeRegistry@./typeRegistry.pb");
+    chunks.push(code`
             ${messageTypeRegistry}.set(${fullName}.$type, ${fullName});
           `);
-    },
-  );
+  });
   let hasStreamingMethods = false;
 
   visitServices(fileDesc, sourceInfo, (serviceDesc, sInfo) => {
@@ -185,7 +178,6 @@ export function generateFile(ctx: Context, fileDesc: FileDescriptorProto): [stri
 }
 
 export type Utils = ReturnType<typeof makeDeepPartial> &
-  ReturnType<typeof makeObjectIdMethods> &
   ReturnType<typeof makeTimestampMethods> &
   ReturnType<typeof makeByteUtils> &
   ReturnType<typeof makeComparisonUtils>;
@@ -197,7 +189,6 @@ export function makeUtils(): Utils {
   return {
     ...bytes,
     ...makeDeepPartial(),
-    ...makeObjectIdMethods(),
     ...makeTimestampMethods(bytes),
     ...makeComparisonUtils(),
   };
@@ -291,71 +282,17 @@ function makeDeepPartial() {
   return { Builtin, DeepPartial, Exact };
 }
 
-function makeObjectIdMethods() {
-  const mongodb = imp("mongodb*mongodb");
-
-  const fromProtoObjectId = conditionalOutput(
-    "fromProtoObjectId",
-    code`
-      function fromProtoObjectId(oid: ObjectId): ${mongodb}.ObjectId {
-        return new ${mongodb}.ObjectId(oid.value);
-      }
-    `,
-  );
-
-  const fromJsonObjectId = conditionalOutput(
-    "fromJsonObjectId",
-    code`
-      function fromJsonObjectId(o: any): ${mongodb}.ObjectId {
-        if (o instanceof ${mongodb}.ObjectId) {
-          return o;
-        } else if (typeof o === "string") {
-          return new ${mongodb}.ObjectId(o);
-        } else {
-          return ${fromProtoObjectId}(ObjectId.fromJSON(o));
-        }
-      }
-    `,
-  );
-
-  const toProtoObjectId = conditionalOutput(
-    "toProtoObjectId",
-    code`
-      function toProtoObjectId(oid: ${mongodb}.ObjectId): ObjectId {
-        const value = oid.toString();
-        return { value };
-      }
-    `,
-  );
-
-  return { fromJsonObjectId, fromProtoObjectId, toProtoObjectId };
-}
-
 function makeTimestampMethods(
   // longs: ReturnType<typeof makeLongUtils>,
   bytes: ReturnType<typeof makeByteUtils>,
 ) {
   const Timestamp = impProto("google/protobuf/timestamp", "Timestamp");
 
-  let seconds: string | Code = "Math.trunc(date.getTime() / 1_000)";
   let toNumberCode: string | Code = "t.seconds";
-
-  const maybeTypeField = `$type: 'google.protobuf.Timestamp',`;
-
-  const toTimestamp = conditionalOutput(
-    "toTimestamp",
-  code`
-          function toTimestamp(date: Date): ${Timestamp} {
-            const seconds = ${seconds};
-            const nanos = (date.getTime() % 1_000) * 1_000_000;
-            return { ${maybeTypeField} seconds, nanos };
-          }
-        `,
-  );
 
   const fromTimestamp = conditionalOutput(
     "fromTimestamp",
-  code`
+    code`
           function fromTimestamp(t: ${Timestamp}): Date {
             let millis = (${toNumberCode} || 0) * 1_000;
             millis += (t.nanos || 0) / 1_000_000;
@@ -366,7 +303,7 @@ function makeTimestampMethods(
 
   const fromJsonTimestamp = conditionalOutput(
     "fromJsonTimestamp",
-          code`
+    code`
         function fromJsonTimestamp(o: any): Date {
           if (o instanceof ${bytes.globalThis}.Date) {
             return o;
@@ -376,10 +313,10 @@ function makeTimestampMethods(
             return ${fromTimestamp}(Timestamp.fromJSON(o));
           }
         }
-      `
+      `,
   );
 
-  return { toTimestamp, fromTimestamp, fromJsonTimestamp };
+  return { fromJsonTimestamp };
 }
 
 function makeComparisonUtils() {
@@ -404,7 +341,7 @@ function makeComparisonUtils() {
 
 // Create the interface with properties
 function generateInterfaceDeclaration(
-  ctx: Context,
+  ctx: BaseContext,
   fullName: string,
   messageDesc: DescriptorProto,
   sourceInfo: SourceInfo,
@@ -432,7 +369,7 @@ function generateInterfaceDeclaration(
 
 // Create a function that constructs 'base' instance with default values for decode to use as a prototype
 function generateBaseInstanceFactory(
-  ctx: Context,
+  ctx: BaseContext,
   fullName: string,
   messageDesc: DescriptorProto,
   fullTypeName: string,
@@ -442,7 +379,7 @@ function generateBaseInstanceFactory(
   for (const field of messageDesc.field) {
     const fieldKey = safeAccessor(getFieldName(field));
     const val = isWithinOneOf(field)
-      ? "undefined" 
+      ? "undefined"
       : isMapType(ctx, messageDesc, field)
       ? "new Map()"
       : isRepeated(field)
@@ -467,7 +404,12 @@ function generateBaseInstanceFactory(
  * This is very similar to decode, we loop through looking for properties, with
  * a few special cases for https://developers.google.com/protocol-buffers/docs/proto3#json.
  * */
-function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, messageDesc: DescriptorProto): Code {
+function generateFromJson(
+  ctx: BaseContext,
+  fullName: string,
+  fullTypeName: string,
+  messageDesc: DescriptorProto,
+): Code {
   const { utils } = ctx;
   const chunks: Code[] = [];
 
@@ -506,12 +448,6 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         // Convert primitives using the String(value)/Number(value)/bytesFromBase64(value)
         if (isBytes(field)) {
           return code`${utils.bytesFromBase64}(${from})`;
-        // } else if (isLong(field) && isJsTypeFieldOption(field)) {
-        //   const fieldType = field.type;
-        //   const cstr = capitalize(
-        //     basicTypeName(ctx, { ...field, type: fieldType }, { keepValueType: true }).toCodeString([]),
-        //   );
-        //   return code`${utils.globalThis}.${cstr}(${from})`;
         } else {
           const cstr = capitalize(basicTypeName(ctx, field, { keepValueType: true }).toCodeString([]));
           return code`${utils.globalThis}.${cstr}(${from})`;
@@ -572,9 +508,9 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
         const fieldType = toTypeName(ctx, messageDesc, field);
         const i = convertFromObjectKey(ctx, messageDesc, field, "key");
 
-          const fallback = "new Map()";
+        const fallback = "new Map()";
 
-          chunks.push(code`
+        chunks.push(code`
             ${fieldKey}: ${ctx.utils.isObject}(${jsonProperty})
               ? Object.entries(${jsonProperty}).reduce<${fieldType}>((acc, [key, value]) => {
                   acc.set(${i}, ${readSnippet("value")});
@@ -629,15 +565,9 @@ function generateFromJson(ctx: Context, fullName: string, fullTypeName: string, 
   return joinCode(chunks, { on: "\n" });
 }
 
-function generateCanonicalToJson(
-  fullName: string,
-  fullProtobufTypeName: string,
-): Code | undefined {
+function generateCanonicalToJson(fullName: string, fullProtobufTypeName: string): Code | undefined {
   if (isFieldMaskTypeName(fullProtobufTypeName)) {
-    // TODO: Do we want optionals?
-    // const returnType = useOptionals === "all" ? `string | ${nullOrUndefined()}` : "string";
     const returnType = "string";
-    // const pathModifier = useOptionals === "all" ? "?" : "";
     const pathModifier = "";
 
     return code`
@@ -650,7 +580,7 @@ function generateCanonicalToJson(
 }
 
 function generateToJson(
-  ctx: Context,
+  ctx: BaseContext,
   fullName: string,
   fullProtobufTypeName: string,
   messageDesc: DescriptorProto,
@@ -681,7 +611,7 @@ function generateToJson(
       if (isEnum(field)) {
         const toJson = getEnumMethod(ctx, field.typeName, "ToJSON");
         return code`${toJson}(${from})`;
-      } else if (isTimestamp(field)) { 
+      } else if (isTimestamp(field)) {
         return code`${from}.toISOString()`;
       } else if (isMapType(ctx, messageDesc, field)) {
         // For map types, drill-in and then admittedly re-hard-code our per-value-type logic
@@ -724,7 +654,7 @@ function generateToJson(
       // Maps might need their values transformed, i.e. bytes --> base64
       const i = convertToObjectKey(ctx, messageDesc, field, "k");
 
-        chunks.push(code`
+      chunks.push(code`
           if (${messageProperty}?.size) {
             ${jsonProperty} = {};
             ${messageProperty}.forEach((v, k) => {
@@ -732,7 +662,6 @@ function generateToJson(
             });
           }
         `);
-
     } else if (isRepeated(field)) {
       // Arrays might need their elements transformed
       const transformElement = readSnippet("e");
@@ -744,7 +673,7 @@ function generateToJson(
       `);
     } else {
       const check =
-        (isScalar(field) || isEnum(field)) && !(isWithinOneOf(field))
+        (isScalar(field) || isEnum(field)) && !isWithinOneOf(field)
           ? notDefaultCheck(ctx, field, messageDesc.options, `${messageProperty}`)
           : `${messageProperty} !== undefined`;
 
@@ -760,7 +689,7 @@ function generateToJson(
   return joinCode(chunks, { on: "\n" });
 }
 
-function generateFromPartial(ctx: Context, fullName: string, messageDesc: DescriptorProto): Code {
+function generateFromPartial(ctx: BaseContext, fullName: string, messageDesc: DescriptorProto): Code {
   const { utils } = ctx;
   const chunks: Code[] = [];
 
@@ -789,11 +718,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
     const objectProperty = getPropertyAccessor("object", fieldName);
 
     const readSnippet = (from: string): Code => {
-      if (
-        isPrimitive(field) ||
-        isTimestamp(field) ||
-        isValueType(ctx, field)
-      ) {
+      if (isPrimitive(field) || isTimestamp(field) || isValueType(ctx, field)) {
         return code`${from}`;
       } else if (isMessage(field)) {
         if (isRepeated(field) && isMapType(ctx, messageDesc, field)) {
@@ -832,7 +757,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
     if (isRepeated(field)) {
       if (isMapType(ctx, messageDesc, field)) {
         const fieldType = toTypeName(ctx, messageDesc, field);
-          chunks.push(code`
+        chunks.push(code`
             ${messageProperty} = (() => {
               const m = new Map();
               (${objectProperty} as ${fieldType} ?? new Map()).forEach((value, key) => {
@@ -843,7 +768,6 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
               return m;
             })();
           `);
-
       } else {
         chunks.push(code`
           ${messageProperty} = ${objectProperty}?.map((e) => ${readSnippet("e")}) || [];
@@ -870,7 +794,7 @@ function generateFromPartial(ctx: Context, fullName: string, messageDesc: Descri
 }
 
 function convertFromObjectKey(
-  ctx: Context,
+  ctx: BaseContext,
   messageDesc: DescriptorProto,
   field: FieldDescriptorProto,
   variableName: string,
@@ -888,7 +812,7 @@ function convertFromObjectKey(
 }
 
 function convertToObjectKey(
-  ctx: Context,
+  ctx: BaseContext,
   messageDesc: DescriptorProto,
   field: FieldDescriptorProto,
   variableName: string,

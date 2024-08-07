@@ -7,7 +7,7 @@ import {
   ServiceDescriptorProto,
 } from "ts-proto-descriptors";
 import { uncapitalize } from "./case";
-import { Context } from "./context";
+import { BaseContext } from "./context";
 import SourceInfo, { Fields } from "./sourceInfo";
 import { messageToTypeName } from "./types";
 import { addComment, maybePrefixPackage } from "./utils";
@@ -16,7 +16,7 @@ import { addComment, maybePrefixPackage } from "./utils";
  * Generates a framework-agnostic service descriptor.
  */
 export function generateGenericServiceDefinition(
-  ctx: Context,
+  ctx: BaseContext,
   fileDesc: FileDescriptorProto,
   sourceInfo: SourceInfo,
   serviceDesc: ServiceDescriptorProto,
@@ -36,7 +36,6 @@ export function generateGenericServiceDefinition(
     export const ${name} = {
   `);
 
-  serviceDesc.options?.uninterpretedOption;
   chunks.push(code`
       name: '${serviceDesc.name}',
       fullName: '${maybePrefixPackage(fileDesc, serviceDesc.name)}',
@@ -60,7 +59,7 @@ export function generateGenericServiceDefinition(
   return joinCode(chunks, { on: "\n" });
 }
 
-function generateMethodDefinition(ctx: Context, methodDesc: MethodDescriptorProto) {
+function generateMethodDefinition(ctx: BaseContext, methodDesc: MethodDescriptorProto) {
   const inputType = messageToTypeName(ctx, methodDesc.inputType, { keepValueType: true });
   const outputType = messageToTypeName(ctx, methodDesc.outputType, { keepValueType: true });
 
@@ -76,7 +75,7 @@ function generateMethodDefinition(ctx: Context, methodDesc: MethodDescriptorProt
   `;
 }
 
-function generateMethodOptions(ctx: Context, options: MethodOptions | undefined) {
+function generateMethodOptions(ctx: BaseContext, options: MethodOptions | undefined) {
   const chunks: Code[] = [];
 
   chunks.push(code`{`);

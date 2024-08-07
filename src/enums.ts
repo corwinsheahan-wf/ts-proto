@@ -3,11 +3,11 @@ import { EnumDescriptorProto, EnumValueDescriptorProto } from "ts-proto-descript
 import { addComment } from "./utils";
 import { uncapitalize } from "./case";
 import SourceInfo, { Fields } from "./sourceInfo";
-import { Context } from "./context";
+import { BaseContext } from "./context";
 
 // Output the `enum { Foo, A = 0, B = 1 }`
 export function generateEnum(
-  ctx: Context,
+  ctx: BaseContext,
   fullName: string,
   enumDesc: EnumDescriptorProto,
   sourceInfo: SourceInfo,
@@ -26,7 +26,7 @@ export function generateEnum(
     addComment(info, chunks, valueDesc.options?.deprecated, `${memberName} - `);
     chunks.push(code`${memberName} ${delimiter} ${valueDesc.number.toString()},`);
   });
-  
+
   chunks.push(code`}`);
 
   chunks.push(code`\n`);
@@ -37,11 +37,7 @@ export function generateEnum(
 }
 
 /** Generates a function with a big switch statement to decode JSON -> our enum. */
-export function generateEnumFromJson(
-  ctx: Context,
-  fullName: string,
-  enumDesc: EnumDescriptorProto,
-): Code {
+export function generateEnumFromJson(ctx: BaseContext, fullName: string, enumDesc: EnumDescriptorProto): Code {
   const { utils } = ctx;
   const chunks: Code[] = [];
 
@@ -59,8 +55,8 @@ export function generateEnumFromJson(
     `);
   }
 
-    // We use globalThis to avoid conflicts on protobuf types named `Error`.
-    chunks.push(code`
+  // We use globalThis to avoid conflicts on protobuf types named `Error`.
+  chunks.push(code`
       default:
         throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
     `);
@@ -71,11 +67,7 @@ export function generateEnumFromJson(
 }
 
 /** Generates a function with a big switch statement to encode our enum -> JSON. */
-export function generateEnumToJson(
-  ctx: Context,
-  fullName: string,
-  enumDesc: EnumDescriptorProto,
-): Code {
+export function generateEnumToJson(ctx: BaseContext, fullName: string, enumDesc: EnumDescriptorProto): Code {
   const { utils } = ctx;
 
   const chunks: Code[] = [];
@@ -90,8 +82,8 @@ export function generateEnumToJson(
     chunks.push(code`case ${fullName}.${memberName}: return "${valueName}";`);
   }
 
-    // We use globalThis to avoid conflicts on protobuf types named `Error`.
-    chunks.push(code`
+  // We use globalThis to avoid conflicts on protobuf types named `Error`.
+  chunks.push(code`
       default:
         throw new ${utils.globalThis}.Error("Unrecognized enum value " + object + " for enum ${fullName}");
     `);
@@ -102,13 +94,13 @@ export function generateEnumToJson(
 }
 
 export function getMemberName(
-  ctx: Context,
+  ctx: BaseContext,
   enumDesc: EnumDescriptorProto,
   valueDesc: EnumValueDescriptorProto,
 ): string {
   return valueDesc.name;
 }
 
-function getValueName(ctx: Context, fullName: string, valueDesc: EnumValueDescriptorProto): string {
+function getValueName(ctx: BaseContext, fullName: string, valueDesc: EnumValueDescriptorProto): string {
   return valueDesc.name;
 }
